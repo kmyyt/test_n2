@@ -1206,22 +1206,6 @@
       synonyms: ["思い出", "暗記"],
       connection: null,
       compareGrammar: []
-    },
-    {
-      id: 75,
-      type: "vocab",
-      category: "한자읽기",
-      word: "企画",
-      kana: "きかく",
-      meaning: "기획",
-      pos: "명사·동사(する)",
-      examTags: ["2020년", "2025년"],
-      example: "新しいイベントの企画を立てているところだ。",
-      exampleKana: "あたらしいいべんとのきかくをたてているところだ。",
-      exampleMeaning: "새로운 이벤트 기획을 세우고 있는 중이다.",
-      synonyms: ["計画", "立案"],
-      connection: null,
-      compareGrammar: []
     }
   ];
 
