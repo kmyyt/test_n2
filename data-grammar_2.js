@@ -1,7 +1,7 @@
 /**
  * JLPT N2 핵심 문법 데이터베이스 (51 ~ 100)
  */
-const GRAMMAR_DB_51_100 = [
+window.GRAMMAR_DB_51_100 = [
   {
     id: "g-051",
     pattern: "〜だけあって・〜だけに / 〜だけのことはある",
