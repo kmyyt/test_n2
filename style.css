@@ -1155,7 +1155,492 @@ kbd {
   max-height: 85vh;
   overflow-y: auto;
 }
+/* =========================================================
+   독해 섹션 (#panel-reading-section) & 유형별 문제 풀이 팁 스타일
+   ========================================================= */
 
+/* '유형별 문제 풀이 팁' 서브 탭 강조 */
+.sub-tab-item.sub-tab-tips {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px dashed var(--accent-amber);
+  color: var(--accent-amber);
+  font-weight: 700;
+}
+
+.sub-tab-item.sub-tab-tips:hover {
+  background-color: var(--accent-amber-soft);
+  color: var(--accent-amber);
+}
+
+.sub-tab-item.sub-tab-tips.active {
+  background-color: var(--accent-amber-soft);
+  color: var(--accent-amber);
+  border-style: solid;
+  box-shadow: var(--shadow-sm);
+}
+
+.badge.badge-tip {
+  background-color: var(--accent-amber);
+  color: #ffffff;
+  border-color: var(--accent-amber);
+  padding: 2px 7px;
+  font-size: 0.7rem;
+}
+
+/* 독해 2단 레이아웃 */
+.reading-layout {
+  display: grid;
+  grid-template-columns: minmax(300px, 340px) minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.reading-list-col {
+  max-height: calc(100vh - 230px);
+  overflow-y: auto;
+  position: sticky;
+  top: 84px;
+}
+
+.reading-detail-col {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+}
+
+.reading-empty-state .guide-list {
+  margin-top: 12px;
+}
+
+/* 지문 목록 아이템 */
+.reading-list-btn {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  padding: 12px 14px;
+  margin-bottom: 8px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-page);
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease, transform 0.12s ease;
+}
+
+.reading-list-btn:last-child {
+  margin-bottom: 0;
+}
+
+.reading-list-btn:hover {
+  border-color: var(--accent-primary);
+  background-color: var(--bg-elevated);
+  transform: translateY(-1px);
+}
+
+.reading-list-btn.active {
+  border-color: var(--accent-primary);
+  background-color: var(--accent-primary-soft);
+}
+
+.reading-item-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.reading-item-title {
+  font-size: 0.94rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.reading-item-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.reading-status-done {
+  color: var(--accent-matcha);
+  background-color: var(--accent-matcha-soft);
+  border-color: rgba(77, 107, 69, 0.28);
+}
+
+.reading-status-todo {
+  color: var(--text-muted);
+  background-color: var(--bg-elevated);
+}
+
+/* 지문 헤더 및 툴바 */
+.reading-passage-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 14px;
+}
+
+.reading-passage-title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 800;
+}
+
+.reading-toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+/* 일본어 지문 본문 가독성 & 밑줄/빈칸/각주 */
+.reading-passage-body {
+  padding: 16px 18px;
+  border-radius: var(--radius-md);
+  background-color: var(--bg-page);
+  border: 1px solid var(--border-color);
+}
+
+.reading-passage-body p,
+.reading-passage-body :lang(ja),
+.reading-passage-body [lang="ja"] {
+  line-height: 1.9;
+  font-size: 1.02rem;
+  margin: 0 0 12px;
+}
+
+.reading-passage-body p:last-child {
+  margin-bottom: 0;
+}
+
+.reading-underline {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
+  text-decoration-color: var(--accent-primary);
+  font-weight: 700;
+  padding: 0 2px;
+}
+
+.reading-blank {
+  display: inline-block;
+  min-width: 58px;
+  padding: 0 8px;
+  margin: 0 3px;
+  text-align: center;
+  font-weight: 800;
+  color: var(--accent-primary);
+  background-color: var(--accent-primary-soft);
+  border-bottom: 2px solid var(--accent-primary);
+  border-radius: 4px;
+}
+
+.reading-footnote {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border-strong);
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.65;
+}
+
+.reading-translation-box {
+  margin-top: 12px;
+  padding: 14px 16px;
+  border-radius: var(--radius-md);
+  background-color: var(--bg-elevated);
+  border-left: 4px solid var(--accent-matcha);
+  font-size: 0.92rem;
+  color: var(--text-primary);
+  line-height: 1.7;
+}
+
+/* 통합이해 A/B 지문 비교 그리드 */
+.reading-ab-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.reading-ab-card {
+  padding: 14px 16px;
+  border-radius: var(--radius-md);
+  background-color: var(--bg-page);
+  border: 1px solid var(--border-color);
+}
+
+.reading-ab-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  font-size: 0.8rem;
+  font-weight: 800;
+  background-color: var(--accent-primary-soft);
+  color: var(--accent-primary);
+}
+
+/* 정보검색 안내문/표 박스 */
+.reading-info-box {
+  padding: 16px 18px;
+  border-radius: var(--radius-md);
+  background-color: var(--bg-page);
+  border: 1px solid var(--border-strong);
+  line-height: 1.8;
+}
+
+.reading-info-box table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 10px 0;
+  font-size: 0.88rem;
+}
+
+.reading-info-box th,
+.reading-info-box td {
+  padding: 8px 10px;
+  border: 1px solid var(--border-color);
+  text-align: left;
+}
+
+.reading-info-box th {
+  background-color: var(--bg-elevated);
+  font-weight: 700;
+}
+
+/* 문항 풀이 & 4지선다 선택지 상태 */
+.reading-question-block {
+  padding: 16px;
+  border-radius: var(--radius-md);
+  background-color: var(--bg-page);
+  border: 1px solid var(--border-color);
+  margin-bottom: 14px;
+}
+
+.reading-question-block:last-child {
+  margin-bottom: 0;
+}
+
+.reading-question-stem {
+  font-size: 0.98rem;
+  font-weight: 700;
+  margin: 0 0 12px;
+  line-height: 1.65;
+}
+
+.reading-choices-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.reading-choice-btn {
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 11px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong);
+  background-color: var(--bg-surface);
+  color: var(--text-primary);
+  font-size: 0.92rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.reading-choice-btn:hover:not(:disabled) {
+  border-color: var(--accent-primary);
+  background-color: var(--bg-elevated);
+}
+
+.reading-choice-btn.is-selected {
+  border-color: var(--accent-primary);
+  background-color: var(--accent-primary-soft);
+  color: var(--accent-primary);
+}
+
+.reading-choice-btn.is-correct {
+  border-color: var(--accent-matcha);
+  background-color: var(--accent-matcha-soft);
+  color: var(--accent-matcha);
+  font-weight: 700;
+}
+
+.reading-choice-btn.is-wrong {
+  border-color: var(--accent-vermilion);
+  background-color: var(--accent-vermilion-soft);
+  color: var(--accent-vermilion);
+}
+
+/* 연계 해설 카드 & 핵심 어휘/문법 포인트 칩 */
+.reading-explanation-box {
+  margin-top: 14px;
+  padding: 14px 16px;
+  border-radius: var(--radius-md);
+  background-color: var(--bg-elevated);
+  border: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.reading-clue-box {
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background-color: var(--bg-surface);
+  border-left: 3px solid var(--accent-primary);
+  font-size: 0.88rem;
+}
+
+.reading-link-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.reading-link-chip {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 11px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong);
+  background-color: var(--bg-surface);
+  font-size: 0.82rem;
+  color: var(--text-primary);
+}
+
+.reading-link-chip strong {
+  color: var(--accent-primary);
+}
+
+/* 유형별 문제 풀이 팁 뷰 (#reading-tips-view) */
+.reading-tips-container {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.reading-type-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(195px, 1fr));
+  gap: 12px;
+}
+
+.overview-type-item {
+  padding: 14px;
+  border-radius: var(--radius-md);
+  background-color: var(--bg-page);
+  border: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.overview-type-item strong {
+  font-size: 0.96rem;
+  color: var(--text-primary);
+}
+
+.overview-type-item p {
+  margin: 0;
+  font-size: 0.83rem;
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+
+.reading-tips-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.tip-card .guide-list {
+  margin-top: 6px;
+}
+
+.tip-trap-tag,
+.reading-tips-container code {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 5px;
+  background-color: var(--accent-amber-soft);
+  color: var(--accent-amber);
+  border: 1px solid rgba(168, 107, 20, 0.25);
+  font-size: 0.84em;
+  font-weight: 700;
+}
+
+.common-strategy-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.strategy-item {
+  padding: 14px;
+  border-radius: var(--radius-md);
+  background-color: var(--bg-page);
+  border: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.strategy-item strong {
+  font-size: 0.94rem;
+  color: var(--accent-primary);
+}
+
+.strategy-item p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+/* 모바일 / 태블릿 반응형 보완 (860px 미만) */
+@media (max-width: 860px) {
+  .reading-layout {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .reading-list-col {
+    position: static;
+    max-height: 240px;
+    overflow-y: auto;
+    padding: 12px 14px;
+  }
+
+  .reading-ab-grid,
+  .reading-tips-grid,
+  .common-strategy-grid {
+    grid-template-columns: 1fr;
+  }
+}
 /* 모바일 반응형 (하단 고정 탭 바 + iOS Safe Area) */
 @media (max-width: 860px) {
   .sidebar {
@@ -1219,4 +1704,5 @@ kbd {
   .compare-grid {
     grid-template-columns: 1fr;
   }
+   
 }
