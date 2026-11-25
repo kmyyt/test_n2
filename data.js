@@ -4,12 +4,13 @@
   const STORAGE_KEY = "jlpt_n2_study_state_v1";
   const EXAM_DATE = "2026-12-06";
 
+  // 상태 체계: "미학습" | "모름" | "애매함" | "완벽함"
   const DEFAULT_STATE = {
     theme: "light", // "light" | "dark"
     ttsRate: 1.0, // 0.6 ~ 1.4
     maskKana: false,
     maskMeaning: false,
-    // [id]: { type: "vocab"|"grammar", status: "외움"|"헷갈림"|"미암기", easeLevel, intervalDays, nextReviewDate, lastReviewedAt }
+    // [id]: { type: "vocab"|"grammar", status: "미학습"|"모름"|"애매함"|"완벽함", easeLevel, intervalDays, nextReviewDate, lastReviewedAt }
     progress: {},
     favorites: [], // 어휘/문법 ID 배열
     customDecks: [], // { id: string, name: string, wordIds: string[] }
@@ -18,13 +19,17 @@
     readingProgress: {} // [readingId]: { completed: boolean, score: number, total: number, updatedAt: string }
   };
 
-  // =========================================================
-  // 1. 중복 기출 정규화 및 섹션별 DB 병합 헬퍼
-  // =========================================================
   function normalizeId(rawId, fallback = "") {
     if (rawId === undefined || rawId === null) return fallback;
     const str = String(rawId).trim();
     return str || fallback;
+  }
+
+  function normalizeStatus(rawStatus) {
+    if (rawStatus === "완벽함" || rawStatus === "외움") return "완벽함";
+    if (rawStatus === "애매함" || rawStatus === "헷갈림") return "애매함";
+    if (rawStatus === "모름") return "모름";
+    return "미학습";
   }
 
   function normalizeExamTag(tag) {
@@ -134,7 +139,6 @@
       }));
   }
 
-  // 개별 단어 DB 병합
   const kanjiReadingList = Array.isArray(window.KANJI_READING_DB) ? window.KANJI_READING_DB : [];
   const notationExamList = Array.isArray(window.NOTATION_EXAM_DB) ? window.NOTATION_EXAM_DB : [];
   const wordFormationList = Array.isArray(window.WORD_FORMATION_DB) ? window.WORD_FORMATION_DB : [];
@@ -158,9 +162,6 @@
   const GRAMMAR_DB = normalizeGrammarList(window.GRAMMAR_DB);
   const READING_DB = normalizeReadingList(window.READING_DB);
 
-  // =========================================================
-  // 2. 문자열/한자/중복기출/SRS 유틸리티
-  // =========================================================
   function formatDuplicateExamLabel(examTags) {
     if (!Array.isArray(examTags) || examTags.length < 2) return "";
     const uniqueTags = [...new Set(examTags.map((t) => String(t).trim()).filter(Boolean))];
@@ -213,36 +214,55 @@
     return `${yyyy}-${mm}-${dd}`;
   }
 
+  // SRS 4단계 평가 반영: "미학습" | "모름" | "애매함" | "완벽함"
   function calculateNextSrs(prevRecord, ratingOrStatus) {
     const prevInterval =
       prevRecord && typeof prevRecord.intervalDays === "number" ? prevRecord.intervalDays : 0;
     const prevEase = prevRecord && typeof prevRecord.easeLevel === "number" ? prevRecord.easeLevel : 1;
 
-    let status = "미암기";
-    let intervalDays = 1;
-    let easeLevel = prevEase;
+    if (ratingOrStatus === "미학습") {
+      return {
+        status: "미학습",
+        easeLevel: 1,
+        intervalDays: 0,
+        nextReviewDate: getTodayISO(0),
+        lastReviewedAt: new Date().toISOString()
+      };
+    }
 
     if (ratingOrStatus === "완벽함" || ratingOrStatus === "외움") {
-      status = "외움";
-      easeLevel = Math.min(5, prevEase + 1);
+      const easeLevel = Math.min(5, prevEase + 1);
+      let intervalDays = 3;
       if (prevInterval <= 0) intervalDays = 3;
       else if (prevInterval < 7) intervalDays = 7;
       else intervalDays = Math.min(60, Math.round(prevInterval * 2.2));
-    } else if (ratingOrStatus === "애매함" || ratingOrStatus === "헷갈림") {
-      status = "헷갈림";
-      easeLevel = Math.max(1, prevEase);
-      intervalDays = prevInterval >= 2 ? 2 : 1;
-    } else {
-      status = "미암기";
-      easeLevel = 1;
-      intervalDays = 1;
+
+      return {
+        status: "완벽함",
+        easeLevel,
+        intervalDays,
+        nextReviewDate: getTodayISO(intervalDays),
+        lastReviewedAt: new Date().toISOString()
+      };
     }
 
+    if (ratingOrStatus === "애매함" || ratingOrStatus === "헷갈림") {
+      const intervalDays = prevInterval >= 2 ? 2 : 1;
+      return {
+        status: "애매함",
+        easeLevel: Math.max(1, prevEase),
+        intervalDays,
+        nextReviewDate: getTodayISO(intervalDays),
+        lastReviewedAt: new Date().toISOString()
+      };
+    }
+
+    // "모름"
     return {
-      status,
-      easeLevel,
-      intervalDays,
-      nextReviewDate: getTodayISO(intervalDays),
+      status: "모름",
+      easeLevel: 1,
+      intervalDays: 1,
+      nextReviewDate: getTodayISO(1),
       lastReviewedAt: new Date().toISOString()
     };
   }
@@ -253,9 +273,7 @@
     if (!rec || !rec.nextReviewDate) return true;
     return rec.nextReviewDate <= getTodayISO(0);
   }
-  // =========================================================
-  // 3. localStorage 스토어 & 데이터 관리 (백업·복원·초기화)
-  // =========================================================
+
   function cloneDefaultState() {
     return JSON.parse(JSON.stringify(DEFAULT_STATE));
   }
@@ -278,14 +296,11 @@
         if (!entry || typeof entry !== "object") return;
         const key = normalizeId(id);
         if (!key) return;
-        const validStatus = ["외움", "헷갈림", "미암기"].includes(entry.status)
-          ? entry.status
-          : "미암기";
         base.progress[key] = {
           type: entry.type === "grammar" ? "grammar" : "vocab",
-          status: validStatus,
+          status: normalizeStatus(entry.status),
           easeLevel: Number.isFinite(Number(entry.easeLevel)) ? Number(entry.easeLevel) : 1,
-          intervalDays: Number.isFinite(Number(entry.intervalDays)) ? Number(entry.intervalDays) : 1,
+          intervalDays: Number.isFinite(Number(entry.intervalDays)) ? Number(entry.intervalDays) : 0,
           nextReviewDate:
             typeof entry.nextReviewDate === "string" && entry.nextReviewDate
               ? entry.nextReviewDate
@@ -418,15 +433,13 @@
     return saveState(cloneDefaultState());
   }
 
-  // =========================================================
-  // 4. 통합 통계 및 어휘 전용 7개 지표 집계
-  // =========================================================
   function getVocabStatsSummary(state = loadState()) {
     const clean = sanitizeState(state);
     const total = VOCAB_DB.length;
-    let learned = 0;
-    let ambiguous = 0;
-    let unlearned = 0;
+    let learned = 0; // 완벽함
+    let ambiguous = 0; // 애매함
+    let unknown = 0; // 모름
+    let unlearned = 0; // 미학습
     let due = 0;
     let wrongCount = 0;
 
@@ -435,10 +448,11 @@
     VOCAB_DB.forEach((item) => {
       const idStr = String(item.id);
       const rec = clean.progress[idStr];
-      const status = rec && ["외움", "헷갈림", "미암기"].includes(rec.status) ? rec.status : "미암기";
+      const status = rec ? normalizeStatus(rec.status) : "미학습";
 
-      if (status === "외움") learned += 1;
-      else if (status === "헷갈림") ambiguous += 1;
+      if (status === "완벽함") learned += 1;
+      else if (status === "애매함") ambiguous += 1;
+      else if (status === "모름") unknown += 1;
       else unlearned += 1;
 
       if (isDueForReview(idStr, clean)) {
@@ -459,6 +473,7 @@
       due,
       learned,
       ambiguous,
+      unknown,
       unlearned,
       favorite: favoriteCount,
       wrong: wrongCount
@@ -468,20 +483,32 @@
   function getGrammarStatsSummary(state = loadState()) {
     const clean = sanitizeState(state);
     const total = GRAMMAR_DB.length;
-    let learned = 0;
+    let learned = 0; // 완벽함
+    let ambiguous = 0; // 애매함
+    let unknown = 0; // 모름
+    let unstudied = 0; // 미학습
     let due = 0;
 
     GRAMMAR_DB.forEach((item) => {
       const idStr = String(item.id);
       const rec = clean.progress[idStr];
-      if (rec && rec.status === "외움") learned += 1;
+      const status = rec ? normalizeStatus(rec.status) : "미학습";
+
+      if (status === "완벽함") learned += 1;
+      else if (status === "애매함") ambiguous += 1;
+      else if (status === "모름") unknown += 1;
+      else unstudied += 1;
+
       if (isDueForReview(idStr, clean)) due += 1;
     });
 
     return {
       total,
-      learned,
       due,
+      learned,
+      ambiguous,
+      unknown,
+      unstudied,
       rate: total > 0 ? Math.round((learned / total) * 100) : 0
     };
   }
@@ -522,7 +549,7 @@
       reading,
       totalDue: vocab.due + grammar.due,
       weak: {
-        ambiguousVocab: vocab.ambiguous,
+        ambiguousVocab: vocab.ambiguous + vocab.unknown,
         totalWrongRecords: Object.values(clean.wrongStats).reduce(
           (acc, s) => acc + (s && Number(s.count) > 0 ? Number(s.count) : 0),
           0
@@ -532,7 +559,6 @@
     };
   }
 
-  // 전역 네임스페이스 공개
   window.JLPTData = {
     STORAGE_KEY,
     EXAM_DATE,
@@ -540,6 +566,7 @@
     VOCAB_DB,
     GRAMMAR_DB,
     READING_DB,
+    normalizeStatus,
     mergeDuplicateEntries,
     formatDuplicateExamLabel,
     isHiraganaOnly,
