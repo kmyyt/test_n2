@@ -11,18 +11,19 @@
 
   let appState = DATA.loadState();
 
-  // 네비게이션 및 지연 렌더링 상태
+  // 메인 탭 및 서브 탭 상태
   let activeMainTab = "main-dashboard";
   let activeVocabSubTab = "vocab-dashboard";
+  let activeGrammarSubTab = "grammar-dashboard";
   let activeReadingCategory = "ALL";
   let selectedReadingId = DATA.READING_DB[0]?.id ?? null;
 
-  // 단어장 페이지네이션 & 선택 상태
+  // 단어장 지연 렌더링 & 다중 선택 상태
   let vocabRenderedCount = VOCAB_PAGE_SIZE;
   let vocabInitialized = false;
   let selectedVocabIds = new Set();
 
-  // 플래시카드 상태
+  // 어휘 플래시카드 상태
   let fcScope = "ALL";
   let fcDeck = [];
   let fcIndex = 0;
@@ -31,8 +32,14 @@
   let fcShowExMeaning = false;
   let fcActiveKanji = null;
 
+  // 문법 플래시카드 상태
+  let gfcScope = "ALL";
+  let gfcDeck = [];
+  let gfcIndex = 0;
+  let gfcFlipped = false;
+
   // =========================================================
-  // 1. 공통 유틸리티 (이스케이프, TTS, D-Day, 전역 가림)
+  // 1. 공통 유틸리티 (이스케이프, TTS, D-Day, 테마, 전역 가림)
   // =========================================================
   function escapeHtml(str) {
     return String(str ?? "")
@@ -50,7 +57,7 @@
   function highlightKeywordInHtml(text, keyword) {
     const safeText = escapeHtml(text || "");
     const kw = String(keyword || "").trim();
-    if (!kw || kw.length < 1) return safeText;
+    if (!kw) return safeText;
     try {
       const regex = new RegExp(`(${escapeRegExp(kw)})`, "g");
       return safeText.replace(regex, '<mark class="kw-highlight" lang="ja">$1</mark>');
@@ -71,6 +78,21 @@
     } catch (_) {
       // TTS 미지원 환경 무시
     }
+  }
+
+  function setText(id, val) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = String(val);
+  }
+
+  function setBarWidth(id, pct) {
+    const el = document.getElementById(id);
+    if (el) el.style.width = `${Math.max(0, Math.min(100, Number(pct) || 0))}%`;
+  }
+
+  function getItemStatus(itemId) {
+    const rec = appState.progress[String(itemId)];
+    return rec ? DATA.normalizeStatus(rec.status) : "미학습";
   }
 
   function updateDdayBadge() {
@@ -122,8 +144,26 @@
     renderMainDashboard();
   }
 
+  function refreshAllViews() {
+    appState = DATA.loadState();
+    applyThemeAndGlobalMasks();
+    renderMainDashboard();
+    if (activeMainTab === "vocab-section") {
+      if (activeVocabSubTab === "vocab-dashboard") renderVocabDashboard();
+      else if (activeVocabSubTab === "vocab-list") renderVocabList();
+      else if (activeVocabSubTab === "vocab-flashcard") renderFlashcard();
+      else if (activeVocabSubTab === "vocab-wrong") renderWrongNotes();
+    } else if (activeMainTab === "grammar-section") {
+      if (activeGrammarSubTab === "grammar-dashboard") renderGrammarDashboard();
+      else if (activeGrammarSubTab === "grammar-list") renderGrammarList();
+      else if (activeGrammarSubTab === "grammar-flashcard") renderGrammarFlashcard();
+    } else if (activeMainTab === "reading-section") {
+      renderReadingSection();
+    }
+  }
+
   // =========================================================
-  // 2. 2단계 탭 전환 (Main Tab & Vocab Sub Tab)
+  // 2. 탭 전환 (메인 5대 탭 / 문자·어휘 서브탭 / 문법 서브탭)
   // =========================================================
   function switchMainTab(tabName, options = {}) {
     const validTabs = [
@@ -152,10 +192,9 @@
     if (tabName === "main-dashboard") {
       renderMainDashboard();
     } else if (tabName === "vocab-section") {
-      const targetSub = options.vocabSubTab || "vocab-dashboard";
-      switchVocabSubTab(targetSub, options);
+      switchVocabSubTab(options.vocabSubTab || "vocab-dashboard", options);
     } else if (tabName === "grammar-section") {
-      renderGrammarSection();
+      switchGrammarSubTab(options.grammarSubTab || "grammar-dashboard", options);
     } else if (tabName === "reading-section") {
       renderReadingSection();
     }
@@ -204,7 +243,7 @@
         const scopeEl = document.getElementById("fc-scope-select");
         if (scopeEl) scopeEl.value = fcScope;
       }
-      buildFlashcardDeck();
+      buildFlashcardDeck(Boolean(options.shuffle));
       renderFlashcard();
     } else if (subTabName === "vocab-wrong") {
       renderWrongNotes();
@@ -213,41 +252,109 @@
     }
   }
 
+  function switchGrammarSubTab(subTabName, options = {}) {
+    const validSubTabs = [
+      "grammar-dashboard",
+      "grammar-list",
+      "grammar-flashcard",
+      "grammar-quiz"
+    ];
+    if (!validSubTabs.includes(subTabName)) subTabName = "grammar-dashboard";
+
+    activeGrammarSubTab = subTabName;
+
+    document.querySelectorAll(".sub-tab-item[data-grammar-subtab]").forEach((btn) => {
+      const isActive = btn.getAttribute("data-grammar-subtab") === subTabName;
+      btn.classList.toggle("active", isActive);
+      btn.setAttribute("aria-selected", String(isActive));
+    });
+
+    document.querySelectorAll(".grammar-subpanel").forEach((panel) => {
+      const isTarget = panel.id === `subpanel-${subTabName}`;
+      panel.classList.toggle("active", isTarget);
+      panel.hidden = !isTarget;
+    });
+
+    if (subTabName === "grammar-dashboard") {
+      renderGrammarDashboard();
+    } else if (subTabName === "grammar-list") {
+      renderGrammarList();
+    } else if (subTabName === "grammar-flashcard") {
+      if (options.scope) {
+        gfcScope = options.scope;
+        const sel = document.getElementById("gfc-scope-select");
+        if (sel) sel.value = gfcScope;
+      }
+      buildGrammarFlashcardDeck(Boolean(options.shuffle));
+      renderGrammarFlashcard();
+    } else if (subTabName === "grammar-quiz") {
+      if (options.autoStartCount && typeof window.JLPTQuiz?.startGrammarQuiz === "function") {
+        window.JLPTQuiz.startGrammarQuiz(options.autoStartCount, "grammar-quiz-runner");
+      }
+    }
+  }
+
+  // 레거시 탭 이름 호환 헬퍼 (quiz.js 등에서 호출 가능)
+  function switchTab(legacyOrMainTab) {
+    if (legacyOrMainTab === "quiz-mcq" || legacyOrMainTab === "quiz-input") {
+      switchMainTab("vocab-section", { vocabSubTab: "vocab-quiz" });
+      return;
+    }
+    if (legacyOrMainTab === "wrong-note") {
+      switchMainTab("vocab-section", { vocabSubTab: "vocab-wrong" });
+      return;
+    }
+    if (legacyOrMainTab === "flashcard") {
+      switchMainTab("vocab-section", { vocabSubTab: "vocab-flashcard" });
+      return;
+    }
+    if (legacyOrMainTab === "vocab") {
+      switchMainTab("vocab-section", { vocabSubTab: "vocab-list" });
+      return;
+    }
+    if (legacyOrMainTab === "grammar") {
+      switchMainTab("grammar-section", { grammarSubTab: "grammar-dashboard" });
+      return;
+    }
+    if (legacyOrMainTab === "reading") {
+      switchMainTab("reading-section");
+      return;
+    }
+    if (legacyOrMainTab === "guide") {
+      switchMainTab("guide-section");
+      return;
+    }
+    switchMainTab("main-dashboard");
+  }
+
   // =========================================================
-  // 3. 대시보드 이원화 렌더링 (통합 대시보드 & 어휘 대시보드)
+  // 3. 통합 대시보드 & 어휘 대시보드 렌더링
   // =========================================================
   function renderMainDashboard() {
     const summary = DATA.getOverallStatsSummary(appState);
 
-    const overallText = document.getElementById("overall-progress-text");
-    const overallFill = document.getElementById("overall-progress-fill");
-    if (overallText) overallText.textContent = `${summary.overallRate}%`;
-    if (overallFill) overallFill.style.width = `${summary.overallRate}%`;
+    setText("overall-progress-text", `${summary.overallRate}%`);
+    setBarWidth("overall-progress-fill", summary.overallRate);
 
-    // 어휘 요약
     setText("dash-vocab-rate", `${summary.vocab.rate}%`);
     setText("dash-vocab-learned", summary.vocab.learned);
     setText("dash-vocab-total", summary.vocab.total);
     setBarWidth("dash-vocab-bar", summary.vocab.rate);
 
-    // 문법 요약
     setText("dash-grammar-rate", `${summary.grammar.rate}%`);
     setText("dash-grammar-learned", summary.grammar.learned);
     setText("dash-grammar-total", summary.grammar.total);
     setBarWidth("dash-grammar-bar", summary.grammar.rate);
 
-    // 독해 요약
     setText("dash-reading-rate", `${summary.reading.rate}%`);
     setText("dash-reading-done", summary.reading.completed);
     setText("dash-reading-total", summary.reading.total);
     setBarWidth("dash-reading-bar", summary.reading.rate);
 
-    // 오늘 복습 합산
     setText("dash-due-total", `${summary.totalDue}개`);
     setText("dash-due-vocab", summary.vocab.due);
     setText("dash-due-grammar", summary.grammar.due);
 
-    // 취약 영역 종합
     setText("dash-weak-ambiguous", summary.weak.ambiguousVocab);
     setText("dash-weak-wrong", summary.weak.totalWrongRecords);
     setText("dash-weak-reading", summary.weak.incompleteReading);
@@ -259,6 +366,7 @@
     setText("stat-vocab-due", stats.due);
     setText("stat-vocab-learned", stats.learned);
     setText("stat-vocab-ambiguous", stats.ambiguous);
+    setText("stat-vocab-unknown", stats.unknown);
     setText("stat-vocab-unlearned", stats.unlearned);
     setText("stat-vocab-favorite", stats.favorite);
     setText("stat-vocab-wrong", stats.wrong);
@@ -346,8 +454,7 @@
 
     let list = DATA.VOCAB_DB.filter((item) => {
       const idStr = String(item.id);
-      const rec = appState.progress[idStr];
-      const curStatus = rec && rec.status ? rec.status : "미암기";
+      const curStatus = getItemStatus(idStr);
 
       if (cat !== "ALL") {
         const matchCat = item.category === cat;
@@ -357,7 +464,9 @@
 
       if (status === "DUE" && !DATA.isDueForReview(idStr, appState)) return false;
       if (status === "FAVORITE" && !favSet.has(idStr)) return false;
-      if (["외움", "헷갈림", "미암기"].includes(status) && curStatus !== status) return false;
+      if (["미학습", "모름", "애매함", "완벽함"].includes(status) && curStatus !== status) {
+        return false;
+      }
 
       if (deckIdSet && !deckIdSet.has(idStr)) return false;
 
@@ -370,13 +479,13 @@
       return true;
     });
 
-    const statusRank = { 헷갈림: 0, 미암기: 1, 외움: 2 };
+    const statusRank = { 모름: 0, 애매함: 1, 미학습: 2, 완벽함: 3 };
     if (sortBy === "kana") {
       list = [...list].sort((a, b) => String(a.kana || "").localeCompare(String(b.kana || ""), "ja"));
     } else if (sortBy === "status") {
       list = [...list].sort((a, b) => {
-        const sa = statusRank[appState.progress[String(a.id)]?.status || "미암기"] ?? 1;
-        const sb = statusRank[appState.progress[String(b.id)]?.status || "미암기"] ?? 1;
+        const sa = statusRank[getItemStatus(a.id)] ?? 2;
+        const sb = statusRank[getItemStatus(b.id)] ?? 2;
         return sa - sb;
       });
     } else if (sortBy === "wrong") {
@@ -410,7 +519,7 @@
     container.innerHTML = visibleItems
       .map((item) => {
         const idStr = String(item.id);
-        const status = appState.progress[idStr]?.status || "미암기";
+        const status = getItemStatus(idStr);
         const isFav = appState.favorites.map(String).includes(idStr);
         const isChecked = selectedVocabIds.has(idStr);
         const dupLabel = DATA.formatDuplicateExamLabel(item.examTags);
@@ -430,11 +539,7 @@
                   kanaOnly ? "is-kana-only-headword" : ""
                 }" lang="ja">${escapeHtml(item.kana)}</span>
                 <span class="badge">${escapeHtml(item.category || "어휘")}</span>
-                ${
-                  dupLabel
-                    ? `<span class="dup-badge">${escapeHtml(dupLabel)}</span>`
-                    : ""
-                }
+                ${dupLabel ? `<span class="dup-badge">${escapeHtml(dupLabel)}</span>` : ""}
               </div>
               <div class="vocab-meaning-ko maskable-meaning">${escapeHtml(item.meaning)}</div>
               <div class="vocab-memo-row">
@@ -454,10 +559,11 @@
             )}" aria-pressed="${isFav}">${isFav ? "★" : "☆"}</button>
             <select class="vocab-status-select" data-status-id="${escapeHtml(
               idStr
-            )}" aria-label="암기 상태 변경">
-              <option value="미암기" ${status === "미암기" ? "selected" : ""}>미암기</option>
-              <option value="헷갈림" ${status === "헷갈림" ? "selected" : ""}>헷갈림</option>
-              <option value="외움" ${status === "외움" ? "selected" : ""}>외움</option>
+            )}" aria-label="학습 상태 변경">
+              <option value="미학습" ${status === "미학습" ? "selected" : ""}>미학습</option>
+              <option value="모름" ${status === "모름" ? "selected" : ""}>모름</option>
+              <option value="애매함" ${status === "애매함" ? "selected" : ""}>애매함</option>
+              <option value="완벽함" ${status === "완벽함" ? "selected" : ""}>완벽함</option>
             </select>
           </div>
         </article>
@@ -485,17 +591,18 @@
     const countEl = document.getElementById("vocab-selected-count");
     if (countEl) countEl.textContent = String(selectedVocabIds.size);
   }
+
   // =========================================================
-  // 5. 플래시카드 & SRS 3단계 평가 & 공통 한자 역추적
+  // 5. 어휘 플래시카드 & SRS 4단계 평가
   // =========================================================
   function getVocabByScope(scope) {
     const favSet = new Set(appState.favorites.map(String));
     return DATA.VOCAB_DB.filter((item) => {
       const idStr = String(item.id);
-      const status = appState.progress[idStr]?.status || "미암기";
+      const status = getItemStatus(idStr);
       if (scope === "DUE") return DATA.isDueForReview(idStr, appState);
       if (scope === "FAVORITE") return favSet.has(idStr);
-      if (["외움", "헷갈림", "미암기"].includes(scope)) return status === scope;
+      if (["미학습", "모름", "애매함", "완벽함"].includes(scope)) return status === scope;
       return true;
     });
   }
@@ -520,8 +627,7 @@
     if (!fcDeck.length) return;
     const item = fcDeck[fcIndex % fcDeck.length];
     const idStr = String(item.id);
-    const prog = appState.progress[idStr];
-    const status = prog?.status || "미암기";
+    const status = getItemStatus(idStr);
     const isFav = appState.favorites.map(String).includes(idStr);
     const dupLabel = DATA.formatDuplicateExamLabel(item.examTags);
     const kanaOnly = DATA.isHiraganaOnly(item.word);
@@ -530,7 +636,7 @@
     setText("fc-status-badge", status);
     setText("fc-category-badge", item.category || "어휘");
 
-    const dupBadge = document.getElementById("fc-duplicate-badge");
+    const dupBadge = document.getElementById("fc-dup-badge");
     if (dupBadge) {
       if (dupLabel) {
         dupBadge.textContent = dupLabel;
@@ -587,23 +693,20 @@
       exMeaningEl.hidden = !fcShowExMeaning || !item.exampleMeaning;
     }
 
-    // 공통 한자 역추적 칩
     const kanjiChars = DATA.extractKanjiChars(item.word);
     const chipsWrap = document.getElementById("fc-kanji-chips");
     const relatedBox = document.getElementById("fc-kanji-related");
     if (chipsWrap) {
-      if (!kanjiChars.length) {
-        chipsWrap.innerHTML = '<span class="helper-text">추출할 한자가 없습니다.</span>';
-      } else {
-        chipsWrap.innerHTML = kanjiChars
-          .map(
-            (ch) =>
-              `<button type="button" class="kanji-chip ${
-                fcActiveKanji === ch ? "active" : ""
-              }" data-kanji-char="${escapeHtml(ch)}" lang="ja">${escapeHtml(ch)}</button>`
-          )
-          .join("");
-      }
+      chipsWrap.innerHTML = kanjiChars.length
+        ? kanjiChars
+            .map(
+              (ch) =>
+                `<button type="button" class="kanji-chip ${
+                  fcActiveKanji === ch ? "active" : ""
+                }" data-kanji-char="${escapeHtml(ch)}" lang="ja">${escapeHtml(ch)}</button>`
+            )
+            .join("")
+        : '<span class="helper-text">추출할 한자가 없습니다.</span>';
     }
     if (relatedBox) {
       if (fcActiveKanji) {
@@ -626,7 +729,6 @@
       }
     }
 
-    // 문법 접속 / 유사 문법 비교 태그 슬롯
     const gramTagsBox = document.getElementById("fc-grammar-tags");
     const connBadge = document.getElementById("fc-connection-badge");
     const compChips = document.getElementById("fc-compare-chips");
@@ -672,7 +774,7 @@
     const idStr = String(item.id);
     const prev = appState.progress[idStr] || null;
     appState.progress[idStr] = {
-      type: item.type || "vocab",
+      type: "vocab",
       ...DATA.calculateNextSrs(prev, rating)
     };
     persistState();
@@ -680,59 +782,41 @@
   }
 
   // =========================================================
-  // 6. 오답노트 / 문법 / 독해 섹션 렌더링
+  // 6. 문법 대시보드 / 문법 목록 / 문법 플래시카드 / 독해 / 오답노트
   // =========================================================
-  function renderWrongNotes() {
-    const listEl = document.getElementById("vocab-wrong-list");
-    if (!listEl) return;
-
-    const wrongEntries = Object.entries(appState.wrongStats)
-      .filter(([, s]) => s && Number(s.count) > 0)
-      .sort((a, b) => Number(b[1].count) - Number(a[1].count));
-
-    if (!wrongEntries.length) {
-      listEl.innerHTML = '<p class="helper-text">기록된 오답이 없습니다. 퀴즈를 풀면 자동 누적됩니다.</p>';
-      return;
-    }
-
-    const vocabMap = new Map(DATA.VOCAB_DB.map((v) => [String(v.id), v]));
-    listEl.innerHTML = wrongEntries
-      .map(([id, stat]) => {
-        const item = vocabMap.get(String(id));
-        const label = item
-          ? `<strong lang="ja">${escapeHtml(item.word)}</strong> <span lang="ja">(${escapeHtml(
-              item.kana
-            )})</span> — ${escapeHtml(item.meaning)}`
-          : `항목 ID: ${escapeHtml(id)}`;
-        return `
-        <div class="vocab-row-card">
-          <div>${label}</div>
-          <div class="quick-action-row">
-            <span class="badge badge-alert">오답 ${Number(stat.count)}회</span>
-            <button type="button" class="chip-btn" data-remove-wrong="${escapeHtml(id)}">제거</button>
-          </div>
-        </div>
-      `;
-      })
-      .join("");
-  }
-
-  function renderGrammarSection() {
+  function renderGrammarDashboard() {
     const stats = DATA.getGrammarStatsSummary(appState);
     setText("stat-grammar-total", stats.total);
-    setText("stat-grammar-learned", stats.learned);
     setText("stat-grammar-due", stats.due);
+    setText("stat-grammar-learned", stats.learned);
+    setText("stat-grammar-ambiguous", stats.ambiguous);
+    setText("stat-grammar-unknown", stats.unknown);
+    setText("stat-grammar-unstudied", stats.unstudied);
+  }
 
+  function renderGrammarList() {
+    renderGrammarDashboard();
     const container = document.getElementById("grammar-card-list");
     if (!container) return;
 
     const q = (document.getElementById("grammar-search-input")?.value || "").trim().toLowerCase();
     const connFilter = document.getElementById("grammar-connection-filter")?.value || "ALL";
+    const statusFilter = document.getElementById("grammar-status-filter")?.value || "ALL";
 
     const filtered = DATA.GRAMMAR_DB.filter((g) => {
+      const idStr = String(g.id);
+      const curStatus = getItemStatus(idStr);
+
       if (connFilter !== "ALL" && !String(g.connection || "").includes(connFilter)) return false;
+      if (statusFilter === "DUE" && !DATA.isDueForReview(idStr, appState)) return false;
+      if (
+        ["미학습", "모름", "애매함", "완벽함"].includes(statusFilter) &&
+        curStatus !== statusFilter
+      ) {
+        return false;
+      }
       if (q) {
-        const hay = `${g.word} ${g.kana} ${g.meaning} ${g.connection} ${g.example}`.toLowerCase();
+        const hay = `${g.word} ${g.kana} ${g.meaning} ${g.connection} ${g.example} ${g.explanation}`.toLowerCase();
         if (!hay.includes(q)) return false;
       }
       return true;
@@ -740,14 +824,14 @@
 
     if (!filtered.length) {
       container.innerHTML =
-        '<div class="card helper-text">등록된 문법 항목이 없거나 검색 조건에 맞는 문법이 없습니다.</div>';
+        '<div class="card helper-text">등록된 문법 항목이 없거나 필터 조건에 맞는 문법이 없습니다.</div>';
       return;
     }
 
     container.innerHTML = filtered
       .map((g) => {
         const idStr = String(g.id);
-        const status = appState.progress[idStr]?.status || "미암기";
+        const status = getItemStatus(idStr);
         const compares = Array.isArray(g.compareGrammar) ? g.compareGrammar : [];
         return `
         <article class="card grammar-card">
@@ -755,10 +839,11 @@
             <span class="grammar-pattern-title" lang="ja">${escapeHtml(g.word)}</span>
             <span class="badge badge-conn">${escapeHtml(g.connection || "문법")}</span>
           </div>
-          <p class="grammar-meaning"><strong>${escapeHtml(g.meaning)}</strong></p>
+          <p class="grammar-meaning maskable-meaning"><strong>${escapeHtml(g.meaning)}</strong></p>
+          ${g.explanation ? `<p class="helper-text">${escapeHtml(g.explanation)}</p>` : ""}
           ${
             g.example
-              ? `<p class="fc-example-jp" lang="ja">${escapeHtml(g.example)}</p><p class="helper-text">${escapeHtml(
+              ? `<p class="fc-example-jp" lang="ja">${escapeHtml(g.example)}</p><p class="helper-text maskable-meaning">${escapeHtml(
                   g.exampleMeaning || ""
                 )}</p>`
               : ""
@@ -773,15 +858,118 @@
               )
               .join("")}
             <select class="vocab-status-select" data-grammar-status-id="${escapeHtml(idStr)}">
-              <option value="미암기" ${status === "미암기" ? "selected" : ""}>미암기</option>
-              <option value="헷갈림" ${status === "헷갈림" ? "selected" : ""}>헷갈림</option>
-              <option value="외움" ${status === "외움" ? "selected" : ""}>외움</option>
+              <option value="미학습" ${status === "미학습" ? "selected" : ""}>미학습</option>
+              <option value="모름" ${status === "모름" ? "selected" : ""}>모름</option>
+              <option value="애매함" ${status === "애매함" ? "selected" : ""}>애매함</option>
+              <option value="완벽함" ${status === "완벽함" ? "selected" : ""}>완벽함</option>
             </select>
           </div>
         </article>
       `;
       })
       .join("");
+  }
+
+  function getGrammarByScope(scope) {
+    return DATA.GRAMMAR_DB.filter((g) => {
+      const idStr = String(g.id);
+      const status = getItemStatus(idStr);
+      if (scope === "DUE") return DATA.isDueForReview(idStr, appState);
+      if (["미학습", "모름", "애매함", "완벽함"].includes(scope)) return status === scope;
+      return true;
+    });
+  }
+
+  function buildGrammarFlashcardDeck(shuffle = false) {
+    const list = getGrammarByScope(gfcScope);
+    gfcDeck = list.length ? [...list] : [...DATA.GRAMMAR_DB];
+    if (shuffle) {
+      for (let i = gfcDeck.length - 1; i > 0; i -= 1) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [gfcDeck[i], gfcDeck[j]] = [gfcDeck[j], gfcDeck[i]];
+      }
+    }
+    gfcIndex = 0;
+    gfcFlipped = false;
+  }
+
+  function renderGrammarFlashcard() {
+    if (!gfcDeck.length) return;
+    const item = gfcDeck[gfcIndex % gfcDeck.length];
+    const idStr = String(item.id);
+    const status = getItemStatus(idStr);
+
+    setText("gfc-counter", `${gfcIndex + 1} / ${gfcDeck.length}`);
+    setText("gfc-status-badge", status);
+    setText("gfc-connection-badge", item.connection || "접속");
+    setText("gfc-category-badge", item.category || "문법");
+
+    const patEl = document.getElementById("gfc-pattern");
+    if (patEl) patEl.textContent = item.word || "";
+
+    const kanaEl = document.getElementById("gfc-kana");
+    if (kanaEl) {
+      kanaEl.textContent = item.kana || item.word || "";
+      kanaEl.classList.remove("is-revealed");
+    }
+
+    const memoEl = document.getElementById("gfc-simple-memo");
+    if (memoEl) memoEl.value = appState.posNotes[idStr] || "";
+
+    const frontEl = document.getElementById("gfc-front");
+    const backEl = document.getElementById("gfc-back");
+    if (frontEl) frontEl.hidden = gfcFlipped;
+    if (backEl) backEl.hidden = !gfcFlipped;
+
+    const meaningEl = document.getElementById("gfc-meaning");
+    if (meaningEl) {
+      meaningEl.textContent = item.meaning || "";
+      meaningEl.classList.remove("is-revealed");
+    }
+
+    setText("gfc-back-connection", item.connection || "접속");
+    setText("gfc-explanation", item.explanation || "");
+    setText("gfc-example", item.example || "");
+    setText("gfc-example-kana", item.exampleKana || "");
+    setText("gfc-example-meaning", item.exampleMeaning || "");
+
+    const compBox = document.getElementById("gfc-compare-chips");
+    if (compBox) {
+      const comps = Array.isArray(item.compareGrammar) ? item.compareGrammar : [];
+      compBox.innerHTML = comps
+        .map(
+          (cg) =>
+            `<button type="button" class="compare-chip" data-open-grammar-compare="${escapeHtml(
+              idStr
+            )}" data-compare-item="${escapeHtml(cg)}" lang="ja">비교: ${escapeHtml(cg)}</button>`
+        )
+        .join("");
+    }
+  }
+
+  function flipGrammarFlashcard(forceState = null) {
+    gfcFlipped = typeof forceState === "boolean" ? forceState : !gfcFlipped;
+    renderGrammarFlashcard();
+  }
+
+  function moveGrammarFlashcard(delta) {
+    if (!gfcDeck.length) return;
+    gfcIndex = (gfcIndex + delta + gfcDeck.length) % gfcDeck.length;
+    gfcFlipped = false;
+    renderGrammarFlashcard();
+  }
+
+  function rateCurrentGrammarCard(rating) {
+    if (!gfcDeck.length) return;
+    const item = gfcDeck[gfcIndex % gfcDeck.length];
+    const idStr = String(item.id);
+    appState.progress[idStr] = {
+      type: "grammar",
+      ...DATA.calculateNextSrs(appState.progress[idStr], rating)
+    };
+    persistState();
+    renderGrammarDashboard();
+    moveGrammarFlashcard(1);
   }
 
   function openGrammarCompareModal(grammarId, compareText = "") {
@@ -802,12 +990,51 @@
         </div>
         <div class="card">
           <strong lang="ja">${escapeHtml(compareText || "비교 대상 문형")}</strong>
-          <p class="helper-text">접속 및 뉘앙스 차이를 예문과 함께 대조하세요.</p>
-          <p>${escapeHtml(baseItem.explanation || "문맥상 시제·화자 태도 차이를 확인하세요.")}</p>
+          <p class="helper-text">접속 조건 및 실제 문맥에서의 뉘앙스 차이를 비교하세요.</p>
+          <p>${escapeHtml(baseItem.explanation || "시제·접속·화자의 의도 차이를 대조해 보세요.")}</p>
         </div>
       </div>
     `;
     modal.hidden = false;
+  }
+
+  function renderWrongNotes() {
+    const listEl = document.getElementById("vocab-wrong-list");
+    if (!listEl) return;
+
+    const wrongEntries = Object.entries(appState.wrongStats)
+      .filter(([, s]) => s && Number(s.count) > 0)
+      .sort((a, b) => Number(b[1].count) - Number(a[1].count));
+
+    if (!wrongEntries.length) {
+      listEl.innerHTML = '<p class="helper-text">기록된 오답이 없습니다. 퀴즈를 풀면 자동 누적됩니다.</p>';
+      return;
+    }
+
+    const combinedMap = new Map([
+      ...DATA.VOCAB_DB.map((v) => [String(v.id), v]),
+      ...DATA.GRAMMAR_DB.map((g) => [String(g.id), g])
+    ]);
+
+    listEl.innerHTML = wrongEntries
+      .map(([id, stat]) => {
+        const item = combinedMap.get(String(id));
+        const label = item
+          ? `<strong lang="ja">${escapeHtml(item.word)}</strong> <span lang="ja">(${escapeHtml(
+              item.kana || ""
+            )})</span> — ${escapeHtml(item.meaning)}`
+          : `항목 ID: ${escapeHtml(id)}`;
+        return `
+        <div class="vocab-row-card">
+          <div>${label}</div>
+          <div class="quick-action-row">
+            <span class="badge badge-alert">오답 ${Number(stat.count)}회</span>
+            <button type="button" class="chip-btn" data-remove-wrong="${escapeHtml(id)}">제거</button>
+          </div>
+        </div>
+      `;
+      })
+      .join("");
   }
 
   function renderReadingSection() {
@@ -821,7 +1048,7 @@
 
     if (!items.length) {
       listCol.innerHTML = '<p class="helper-text">해당 유형의 독해 지문이 아직 없습니다.</p>';
-      detailCol.innerHTML = '<p class="helper-text">지문을 추가하면 본문과 문맥 완성 문제·해설이 표시됩니다.</p>';
+      detailCol.innerHTML = '<p class="helper-text">지문을 추가하면 본문과 문제, 어휘·문법 연계 해설이 표시됩니다.</p>';
       return;
     }
 
@@ -862,7 +1089,11 @@
         <span class="badge">${escapeHtml(current.category)}</span>
       </div>
       <div class="reading-passage-text maskable-target" lang="ja">${escapeHtml(current.passage)}</div>
-      ${current.translation ? `<p class="helper-text maskable-meaning">${escapeHtml(current.translation)}</p>` : ""}
+      ${
+        current.translation
+          ? `<p class="helper-text maskable-meaning">${escapeHtml(current.translation)}</p>`
+          : ""
+      }
       <hr />
       <div class="reading-questions">${questionsHtml}</div>
       <div class="quick-action-row">
@@ -876,37 +1107,31 @@
   // =========================================================
   // 7. 이벤트 바인딩 & 전역 단축키 & 초기화
   // =========================================================
-  function setText(id, val) {
-    const el = document.getElementById(id);
-    if (el) el.textContent = String(val);
-  }
-
-  function setBarWidth(id, pct) {
-    const el = document.getElementById(id);
-    if (el) el.style.width = `${Math.max(0, Math.min(100, Number(pct) || 0))}%`;
-  }
-
   function bindEvents() {
+    document.addEventListener("jlpt:state-updated", () => {
+      refreshAllViews();
+    });
+
     // 타이틀 클릭 시 홈(대시보드) 이동
     document.getElementById("brand-home-btn")?.addEventListener("click", () => {
       switchMainTab("main-dashboard");
     });
 
-    // 메인 5대 탭 전환
+    // 메인 5대 탭
     document.querySelectorAll(".nav-item[data-main-tab]").forEach((btn) => {
       btn.addEventListener("click", () => {
         switchMainTab(btn.getAttribute("data-main-tab"));
       });
     });
 
-    // 통합 대시보드 영역 카드 클릭 점프
+    // 통합 대시보드 영역 카드 점프
     document.querySelectorAll(".domain-card[data-jump-main]").forEach((card) => {
       card.addEventListener("click", () => {
         switchMainTab(card.getAttribute("data-jump-main"));
       });
     });
 
-    // 통합 대시보드 빠른 시작 버튼
+    // 통합 대시보드 빠른 시작
     document.getElementById("btn-quick-start-vocab")?.addEventListener("click", () => {
       switchMainTab("vocab-section", { vocabSubTab: "vocab-flashcard", scope: "DUE" });
     });
@@ -914,7 +1139,7 @@
       switchMainTab("vocab-section", { vocabSubTab: "vocab-flashcard", scope: "ALL" });
     });
     document.getElementById("btn-quick-start-grammar")?.addEventListener("click", () => {
-      switchMainTab("grammar-section");
+      switchMainTab("grammar-section", { grammarSubTab: "grammar-dashboard" });
     });
 
     // 백업/복원/초기화
@@ -941,6 +1166,7 @@
           applyThemeAndGlobalMasks();
           renderMainDashboard();
           renderVocabDashboard();
+          renderGrammarDashboard();
           setText("backup-status-msg", "학습 데이터를 성공적으로 복원했습니다.");
         } else {
           setText("backup-status-msg", res.error || "복원에 실패했습니다.");
@@ -957,6 +1183,7 @@
       applyThemeAndGlobalMasks();
       renderMainDashboard();
       renderVocabDashboard();
+      renderGrammarDashboard();
       setText("backup-status-msg", "전체 학습 데이터가 초기화되었습니다.");
     });
 
@@ -965,17 +1192,14 @@
       appState.theme = appState.theme === "dark" ? "light" : "dark";
       persistState();
     });
-
     document.getElementById("mask-kana-btn")?.addEventListener("click", () => {
       appState.maskKana = !appState.maskKana;
       persistState();
     });
-
     document.getElementById("mask-meaning-btn")?.addEventListener("click", () => {
       appState.maskMeaning = !appState.maskMeaning;
       persistState();
     });
-
     document.getElementById("tts-rate-select")?.addEventListener("change", (e) => {
       appState.ttsRate = Number(e.target.value) || 1.0;
       persistState();
@@ -1000,7 +1224,7 @@
       });
     });
 
-    // 어휘 7개 통계 카드 클릭 시 단어장/플래시카드/오답으로 연동
+    // 어휘 통계 카드 클릭
     document.querySelectorAll("#vocab-stats-grid .stat-card[data-stat-filter]").forEach((card) => {
       card.addEventListener("click", () => {
         const key = card.getAttribute("data-stat-filter");
@@ -1013,7 +1237,7 @@
         if (statusSel) {
           if (key === "due") statusSel.value = "DUE";
           else if (key === "favorite") statusSel.value = "FAVORITE";
-          else if (["외움", "헷갈림", "미암기"].includes(key)) statusSel.value = key;
+          else if (["미학습", "모름", "애매함", "완벽함"].includes(key)) statusSel.value = key;
           else statusSel.value = "ALL";
         }
         vocabRenderedCount = VOCAB_PAGE_SIZE;
@@ -1021,7 +1245,17 @@
       });
     });
 
-    // 커스텀 단어장 생성
+    // 어휘 대시보드 빠른 버튼 & 커스텀 단어장
+    document.getElementById("btn-vocab-start-due")?.addEventListener("click", () => {
+      switchVocabSubTab("vocab-flashcard", { scope: "DUE" });
+    });
+    document.getElementById("btn-vocab-start-list")?.addEventListener("click", () => {
+      switchVocabSubTab("vocab-list");
+    });
+    document.getElementById("btn-vocab-start-quiz")?.addEventListener("click", () => {
+      switchVocabSubTab("vocab-quiz");
+    });
+
     document.getElementById("custom-deck-create-form")?.addEventListener("submit", (e) => {
       e.preventDefault();
       const input = document.getElementById("new-deck-name-input");
@@ -1057,17 +1291,21 @@
       }
     });
 
-    // 단어장 필터·검색·정렬·더 보기·일괄 작업
-    ["vocab-search-input", "vocab-category-filter", "vocab-status-filter", "vocab-deck-filter", "vocab-sort-select"].forEach(
-      (id) => {
-        const el = document.getElementById(id);
-        const evt = id === "vocab-search-input" ? "input" : "change";
-        el?.addEventListener(evt, () => {
-          vocabRenderedCount = VOCAB_PAGE_SIZE;
-          renderVocabList();
-        });
-      }
-    );
+    // 단어장 필터·더 보기·일괄 작업
+    [
+      "vocab-search-input",
+      "vocab-category-filter",
+      "vocab-status-filter",
+      "vocab-deck-filter",
+      "vocab-sort-select"
+    ].forEach((id) => {
+      const el = document.getElementById(id);
+      const evt = id === "vocab-search-input" ? "input" : "change";
+      el?.addEventListener(evt, () => {
+        vocabRenderedCount = VOCAB_PAGE_SIZE;
+        renderVocabList();
+      });
+    });
 
     document.getElementById("btn-load-more-vocab")?.addEventListener("click", () => {
       vocabRenderedCount += VOCAB_PAGE_SIZE;
@@ -1113,9 +1351,8 @@
       if (!(target instanceof HTMLElement)) return;
 
       if (target.matches(".vocab-row-check")) {
-        const val = target.value;
-        if (target.checked) selectedVocabIds.add(val);
-        else selectedVocabIds.delete(val);
+        if (target.checked) selectedVocabIds.add(target.value);
+        else selectedVocabIds.delete(target.value);
         updateBatchSelectionUI();
         return;
       }
@@ -1144,13 +1381,12 @@
 
     document.getElementById("vocab-list-container")?.addEventListener("change", (e) => {
       const target = e.target;
-      if (!(target instanceof HTMLElement)) return;
+      if (!(target instanceof HTMLSelectElement)) return;
       const stId = target.getAttribute("data-status-id");
-      if (stId && target instanceof HTMLSelectElement) {
-        const rating = target.value === "외움" ? "완벽함" : target.value === "헷갈림" ? "애매함" : "모름";
+      if (stId) {
         appState.progress[stId] = {
           type: "vocab",
-          ...DATA.calculateNextSrs(appState.progress[stId], rating)
+          ...DATA.calculateNextSrs(appState.progress[stId], target.value)
         };
         persistState();
       }
@@ -1166,7 +1402,7 @@
       }
     });
 
-    // 플래시카드 이벤트
+    // 어휘 플래시카드 이벤트
     document.getElementById("fc-scope-select")?.addEventListener("change", (e) => {
       fcScope = e.target.value;
       buildFlashcardDeck(false);
@@ -1214,7 +1450,6 @@
       appState.posNotes[String(cur.id)] = e.target.value;
       DATA.saveState(appState);
     });
-
     document.getElementById("flashcard-card")?.addEventListener("click", (e) => {
       const target = e.target;
       if (!(target instanceof HTMLElement)) return;
@@ -1225,7 +1460,6 @@
       }
       flipFlashcard();
     });
-
     document.getElementById("fc-kanji-chips")?.addEventListener("click", (e) => {
       e.stopPropagation();
       const chip = e.target.closest("[data-kanji-char]");
@@ -1234,10 +1468,8 @@
       fcActiveKanji = fcActiveKanji === ch ? null : ch;
       renderFlashcard();
     });
-
     document.getElementById("btn-fc-prev")?.addEventListener("click", () => moveFlashcard(-1));
     document.getElementById("btn-fc-next")?.addEventListener("click", () => moveFlashcard(1));
-
     document.querySelectorAll("[data-srs-rating]").forEach((btn) => {
       btn.addEventListener("click", () => {
         rateCurrentFlashcard(btn.getAttribute("data-srs-rating"));
@@ -1258,9 +1490,44 @@
       renderWrongNotes();
     });
 
-    // 문법 필터 & 유사 문법 비교
-    document.getElementById("grammar-search-input")?.addEventListener("input", renderGrammarSection);
-    document.getElementById("grammar-connection-filter")?.addEventListener("change", renderGrammarSection);
+    // 문법 서브탭 & 대시보드 & 목록 & 플래시카드 & 퀴즈
+    document.querySelectorAll(".sub-tab-item[data-grammar-subtab]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        switchGrammarSubTab(btn.getAttribute("data-grammar-subtab"));
+      });
+    });
+
+    document.querySelectorAll("#grammar-stats-grid .stat-card[data-grammar-stat]").forEach((card) => {
+      card.addEventListener("click", () => {
+        const key = card.getAttribute("data-grammar-stat");
+        switchGrammarSubTab("grammar-list");
+        const stSel = document.getElementById("grammar-status-filter");
+        if (stSel) {
+          if (key === "due") stSel.value = "DUE";
+          else if (["미학습", "모름", "애매함", "완벽함"].includes(key)) stSel.value = key;
+          else stSel.value = "ALL";
+        }
+        renderGrammarList();
+      });
+    });
+
+    document.getElementById("btn-grammar-start-due-fc")?.addEventListener("click", () => {
+      switchGrammarSubTab("grammar-flashcard", { scope: "DUE" });
+    });
+    document.getElementById("btn-grammar-start-all-fc")?.addEventListener("click", () => {
+      switchGrammarSubTab("grammar-flashcard", { scope: "ALL" });
+    });
+    document.getElementById("btn-grammar-start-quiz")?.addEventListener("click", () => {
+      switchGrammarSubTab("grammar-quiz", { autoStartCount: 10 });
+    });
+    document.getElementById("btn-grammar-go-list")?.addEventListener("click", () => {
+      switchGrammarSubTab("grammar-list");
+    });
+
+    document.getElementById("grammar-search-input")?.addEventListener("input", renderGrammarList);
+    document.getElementById("grammar-connection-filter")?.addEventListener("change", renderGrammarList);
+    document.getElementById("grammar-status-filter")?.addEventListener("change", renderGrammarList);
+
     document.getElementById("grammar-card-list")?.addEventListener("click", (e) => {
       const btn = e.target.closest("[data-open-grammar-compare]");
       if (!btn) return;
@@ -1269,18 +1536,75 @@
         btn.getAttribute("data-compare-item") || ""
       );
     });
+
     document.getElementById("grammar-card-list")?.addEventListener("change", (e) => {
       const sel = e.target.closest("[data-grammar-status-id]");
-      if (!sel || !(sel instanceof HTMLSelectElement)) return;
+      if (!(sel instanceof HTMLSelectElement)) return;
       const gId = sel.getAttribute("data-grammar-status-id");
-      const rating = sel.value === "외움" ? "완벽함" : sel.value === "헷갈림" ? "애매함" : "모름";
       appState.progress[gId] = {
         type: "grammar",
-        ...DATA.calculateNextSrs(appState.progress[gId], rating)
+        ...DATA.calculateNextSrs(appState.progress[gId], sel.value)
       };
       persistState();
-      renderGrammarSection();
+      renderGrammarDashboard();
     });
+
+    // 문법 플래시카드 이벤트
+    document.getElementById("gfc-scope-select")?.addEventListener("change", (e) => {
+      gfcScope = e.target.value;
+      buildGrammarFlashcardDeck(false);
+      renderGrammarFlashcard();
+    });
+    document.getElementById("btn-gfc-shuffle")?.addEventListener("click", () => {
+      buildGrammarFlashcardDeck(true);
+      renderGrammarFlashcard();
+    });
+    document.getElementById("btn-gfc-speak")?.addEventListener("click", () => {
+      const cur = gfcDeck[gfcIndex % gfcDeck.length];
+      if (cur?.example || cur?.word) speakJapanese(cur.example || cur.word);
+    });
+    document.getElementById("gfc-simple-memo")?.addEventListener("click", (e) => e.stopPropagation());
+    document.getElementById("gfc-simple-memo")?.addEventListener("input", (e) => {
+      const cur = gfcDeck[gfcIndex % gfcDeck.length];
+      if (!cur) return;
+      appState.posNotes[String(cur.id)] = e.target.value;
+      DATA.saveState(appState);
+    });
+    document.getElementById("grammar-flashcard-card")?.addEventListener("click", (e) => {
+      const target = e.target;
+      if (!(target instanceof HTMLElement)) return;
+      if (target.closest("button, input, select, textarea")) return;
+      const compBtn = target.closest("[data-open-grammar-compare]");
+      if (compBtn) {
+        openGrammarCompareModal(
+          compBtn.getAttribute("data-open-grammar-compare"),
+          compBtn.getAttribute("data-compare-item") || ""
+        );
+        return;
+      }
+      if (target.classList.contains("maskable-kana") || target.classList.contains("maskable-meaning")) {
+        target.classList.toggle("is-revealed");
+        return;
+      }
+      flipGrammarFlashcard();
+    });
+    document.getElementById("btn-gfc-prev")?.addEventListener("click", () => moveGrammarFlashcard(-1));
+    document.getElementById("btn-gfc-next")?.addEventListener("click", () => moveGrammarFlashcard(1));
+    document.querySelectorAll("[data-grammar-srs]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        rateCurrentGrammarCard(btn.getAttribute("data-grammar-srs"));
+      });
+    });
+
+    // 문법 퀴즈 시작 버튼
+    document.getElementById("btn-run-grammar-quiz-10")?.addEventListener("click", () => {
+      window.JLPTQuiz?.startGrammarQuiz(10, "grammar-quiz-runner");
+    });
+    document.getElementById("btn-run-grammar-quiz-all")?.addEventListener("click", () => {
+      window.JLPTQuiz?.startGrammarQuiz("ALL", "grammar-quiz-runner");
+    });
+
+    // 유사 문법 비교 모달 닫기
     document.getElementById("btn-close-compare-modal")?.addEventListener("click", () => {
       const modal = document.getElementById("grammar-compare-modal");
       if (modal) modal.hidden = true;
@@ -1321,7 +1645,7 @@
       renderReadingSection();
     });
 
-    // 전역 단축키 (Space, ArrowLeft/Right, R, 1/2/3, K, M, ?)
+    // 전역 단축키 (입력창/셀렉트/텍스트에어리어 포커스 시 충돌 방지)
     document.addEventListener("keydown", (e) => {
       const activeTag = document.activeElement?.tagName?.toLowerCase() || "";
       const isEditable =
@@ -1374,6 +1698,9 @@
           e.preventDefault();
           const cur = fcDeck[fcIndex % fcDeck.length];
           if (cur) speakJapanese(cur.word || cur.kana);
+        } else if (e.key === "0") {
+          e.preventDefault();
+          rateCurrentFlashcard("미학습");
         } else if (e.key === "1") {
           e.preventDefault();
           rateCurrentFlashcard("모름");
@@ -1383,6 +1710,33 @@
         } else if (e.key === "3") {
           e.preventDefault();
           rateCurrentFlashcard("완벽함");
+        }
+      } else if (activeMainTab === "grammar-section" && activeGrammarSubTab === "grammar-flashcard") {
+        if (e.code === "Space") {
+          e.preventDefault();
+          flipGrammarFlashcard();
+        } else if (e.key === "ArrowLeft") {
+          e.preventDefault();
+          moveGrammarFlashcard(-1);
+        } else if (e.key === "ArrowRight") {
+          e.preventDefault();
+          moveGrammarFlashcard(1);
+        } else if (lower === "r") {
+          e.preventDefault();
+          const cur = gfcDeck[gfcIndex % gfcDeck.length];
+          if (cur?.example || cur?.word) speakJapanese(cur.example || cur.word);
+        } else if (e.key === "0") {
+          e.preventDefault();
+          rateCurrentGrammarCard("미학습");
+        } else if (e.key === "1") {
+          e.preventDefault();
+          rateCurrentGrammarCard("모름");
+        } else if (e.key === "2") {
+          e.preventDefault();
+          rateCurrentGrammarCard("애매함");
+        } else if (e.key === "3") {
+          e.preventDefault();
+          rateCurrentGrammarCard("완벽함");
         }
       }
     });
@@ -1401,4 +1755,18 @@
   } else {
     init();
   }
+
+  window.JLPTStudy = {
+    getState: () => appState,
+    reloadState: () => {
+      appState = DATA.loadState();
+      return appState;
+    },
+    switchMainTab,
+    switchVocabSubTab,
+    switchGrammarSubTab,
+    switchTab,
+    refreshAllViews,
+    speakJapanese
+  };
 })();
