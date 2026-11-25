@@ -1,5 +1,5 @@
 /* =========================================================
-   JLPT N2 문제 확인 및 내용 정리 — 와시 & 스미이로 스타일시트 (1/2)
+   JLPT N2 문제 확인 및 내용 정리 — 와시 & 스미이로 스타일시트
    ========================================================= */
 
 :root {
@@ -17,7 +17,7 @@
   --border-color: #dfd6c5;
   --border-strong: #c8bca6;
 
-  /* 아이이로(藍染 · 남색) & 말차색(抹茶色) & 슈이로(朱色) */
+  /* 아이이로(藍染 · 남색) / 말차색(抹茶色) / 슈이로(朱色) / 호박색 */
   --accent-primary: #23496b;
   --accent-primary-hover: #193650;
   --accent-primary-soft: rgba(35, 73, 107, 0.12);
@@ -30,6 +30,9 @@
 
   --accent-amber: #a86b14;
   --accent-amber-soft: rgba(168, 107, 20, 0.14);
+
+  --mark-bg: rgba(242, 201, 76, 0.42);
+  --mark-border: rgba(184, 134, 11, 0.55);
 
   --shadow-sm: 0 2px 8px rgba(31, 29, 26, 0.05);
   --shadow-md: 0 8px 24px rgba(31, 29, 26, 0.09);
@@ -73,11 +76,14 @@ body.dark-mode {
   --accent-amber: #dca048;
   --accent-amber-soft: rgba(220, 160, 72, 0.16);
 
+  --mark-bg: rgba(220, 160, 72, 0.28);
+  --mark-border: rgba(220, 160, 72, 0.6);
+
   --shadow-sm: 0 2px 10px rgba(0, 0, 0, 0.28);
   --shadow-md: 0 10px 28px rgba(0, 0, 0, 0.42);
 }
 
-/* 기본 리셋 및 접근성 */
+/* 기본 리셋 & 접근성 */
 *,
 *::before,
 *::after {
@@ -112,12 +118,24 @@ body {
   border: 0;
 }
 
-/* 일본 표준 신자체 및 가독성 최적화 */
+/* 일본 표준 신자체 & 가독성 최적화 */
 :lang(ja),
 [lang="ja"] {
   font-family: var(--font-ja);
   line-height: 1.75;
   letter-spacing: 0.02em;
+}
+
+/* 예문 내 핵심 키워드 형광펜 하이라이트 */
+mark.kw-highlight,
+mark.target-keyword,
+mark.keyword-highlight {
+  background-color: var(--mark-bg);
+  color: var(--text-primary);
+  padding: 1px 4px;
+  border-radius: 4px;
+  border-bottom: 2px solid var(--mark-border);
+  font-weight: 700;
 }
 
 /* =========================================================
@@ -304,7 +322,8 @@ body {
   border-color: var(--border-strong);
 }
 
-.toolbar-btn[aria-pressed="true"] {
+.toolbar-btn[aria-pressed="true"],
+.toolbar-btn.is-active {
   background-color: var(--accent-primary);
   color: #ffffff;
   border-color: var(--accent-primary);
@@ -397,6 +416,13 @@ body {
   margin-bottom: 12px;
 }
 
+.helper-text,
+.status-message {
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  margin: 8px 0;
+}
+
 .domain-summary-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -438,16 +464,12 @@ body {
   margin-bottom: 18px;
 }
 
-/* 어휘 7칸 통계 그리드 */
+/* 통계 그리드 (어휘 / 문법 대시보드) */
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   gap: 10px;
   margin-bottom: 18px;
-}
-
-.stats-grid.compact-stats {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .stat-card {
@@ -460,6 +482,7 @@ body {
   align-items: center;
   gap: 4px;
   cursor: pointer;
+  color: var(--text-primary);
   transition: border-color 0.15s ease, transform 0.15s ease;
 }
 
@@ -480,72 +503,7 @@ button.stat-card:hover {
   color: var(--text-primary);
 }
 
-/* 모바일 반응형 (하단 고정 탭 바 + Safe Area) */
-@media (max-width: 860px) {
-  .sidebar {
-    top: auto;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    width: 100%;
-    height: auto;
-    padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
-    border-right: none;
-    border-top: 1px solid var(--border-color);
-    background-color: var(--bg-surface);
-  }
-
-  .brand,
-  .sidebar-footer {
-    display: none;
-  }
-
-  .nav-list {
-    flex-direction: row;
-    justify-content: space-around;
-    gap: 2px;
-  }
-
-  .nav-item {
-    flex-direction: column;
-    gap: 2px;
-    padding: 6px 4px;
-    font-size: 0.72rem;
-    text-align: center;
-    border-radius: var(--radius-sm);
-  }
-
-  .nav-icon {
-    font-size: 1.1rem;
-  }
-
-  .main-wrapper {
-    margin-left: 0;
-    padding-bottom: calc(74px + env(safe-area-inset-bottom));
-  }
-
-  .top-header {
-    padding: 10px 14px;
-  }
-
-  #app-content {
-    padding: 16px 14px;
-  }
-
-  .domain-summary-grid,
-  .dashboard-split-grid,
-  .vocab-dash-grid,
-  .guide-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .stats-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-/* =========================================================
-   버튼, 배지, 폼 및 전역 가림 스타일 (2/2)
-   ========================================================= */
+/* 버튼, 배지, 폼 */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -663,17 +621,7 @@ button.stat-card:hover {
   color: var(--accent-amber);
 }
 
-/* =========================================================
-   전역 히라가나 가림 & 뜻 가림 (호버/클릭 임시 해제)
-   - 표제어가 히라가나로만 된 단어(.is-kana-only-headword)는 본문 표기 유지
-   ========================================================= */
-body.mask-kana-active .maskable-kana:not(.is-revealed):not(.is-kana-only-headword):hover,
-body.mask-kana-active .maskable-kana.is-revealed,
-body.mask-meaning-active .maskable-meaning.is-revealed {
-  filter: none;
-  opacity: 1;
-}
-
+/* 전역 히라가나 가림 & 뜻 가림 (호버/클릭 임시 해제, 히라가나 전용 단어 제외) */
 body.mask-kana-active .maskable-kana:not(.is-kana-only-headword) {
   filter: blur(6px);
   opacity: 0.55;
@@ -682,7 +630,8 @@ body.mask-kana-active .maskable-kana:not(.is-kana-only-headword) {
   transition: filter 0.15s ease, opacity 0.15s ease;
 }
 
-body.mask-kana-active .maskable-kana:not(.is-kana-only-headword):hover {
+body.mask-kana-active .maskable-kana:not(.is-kana-only-headword):hover,
+body.mask-kana-active .maskable-kana:not(.is-kana-only-headword).is-revealed {
   filter: none;
   opacity: 1;
 }
@@ -695,14 +644,13 @@ body.mask-meaning-active .maskable-meaning {
   transition: filter 0.15s ease, opacity 0.15s ease;
 }
 
-body.mask-meaning-active .maskable-meaning:hover {
+body.mask-meaning-active .maskable-meaning:hover,
+body.mask-meaning-active .maskable-meaning.is-revealed {
   filter: none;
   opacity: 1;
 }
 
-/* =========================================================
-   단어장 필터, 리스트 카드 & 더 보기
-   ========================================================= */
+/* 단어장 필터, 리스트 & 더 보기 */
 .filter-toolbar {
   margin-bottom: 16px;
 }
@@ -716,7 +664,8 @@ body.mask-meaning-active .maskable-meaning:hover {
 
 .search-input,
 .inline-form input[type="text"],
-.fc-note-box input[type="text"] {
+.fc-note-box input[type="text"],
+.vocab-memo-input {
   width: 100%;
   padding: 9px 12px;
   border-radius: var(--radius-sm);
@@ -729,7 +678,8 @@ body.mask-meaning-active .maskable-meaning:hover {
 .filter-row select,
 .batch-controls select,
 .quiz-options-grid select,
-.subjective-options select {
+.subjective-options select,
+.vocab-status-select {
   padding: 8px 10px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border-strong);
@@ -738,33 +688,43 @@ body.mask-meaning-active .maskable-meaning:hover {
   font-size: 0.86rem;
 }
 
-.batch-action-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding-top: 10px;
-  border-top: 1px solid var(--border-color);
-}
-
-.batch-controls,
+.batch-action-row,
 .quick-action-row,
 .backup-actions,
-.inline-form {
+.inline-form,
+.vocab-row-actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
 }
 
-.vocab-list-container {
+.batch-action-row {
+  justify-content: space-between;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-color);
+}
+
+.checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.vocab-list-container,
+.grammar-list-container,
+.wrong-list-container {
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
 
-.vocab-row-card {
+.vocab-row-card,
+.grammar-card {
   background-color: var(--bg-surface);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
@@ -776,12 +736,25 @@ body.mask-meaning-active .maskable-meaning:hover {
   gap: 12px;
 }
 
+.grammar-card {
+  flex-direction: column;
+  align-items: stretch;
+}
+
 .vocab-row-main {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 12px;
   min-width: 240px;
   flex: 1 1 320px;
+}
+
+.vocab-word-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
 }
 
 .vocab-word-jp {
@@ -798,6 +771,11 @@ body.mask-meaning-active .maskable-meaning:hover {
 .vocab-meaning-ko {
   font-size: 0.95rem;
   color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+.vocab-memo-row {
+  max-width: 360px;
 }
 
 .load-more-wrap {
@@ -808,9 +786,7 @@ body.mask-meaning-active .maskable-meaning:hover {
   gap: 8px;
 }
 
-/* =========================================================
-   플래시카드, 간단 메모장, 공통 한자 칩 & 문법 태그
-   ========================================================= */
+/* 플래시카드, 한자 칩, 문법 비교 태그 & SRS 버튼 */
 .flashcard-toolbar {
   display: flex;
   flex-wrap: wrap;
@@ -822,7 +798,8 @@ body.mask-meaning-active .maskable-meaning:hover {
 
 .flashcard-controls-left,
 .flashcard-progress,
-.srs-rating-group {
+.srs-rating-group,
+.fc-example-toggles {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -830,7 +807,7 @@ body.mask-meaning-active .maskable-meaning:hover {
 }
 
 .flashcard {
-  min-height: 300px;
+  min-height: 290px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -849,7 +826,7 @@ body.mask-meaning-active .maskable-meaning:hover {
 }
 
 .fc-word-display {
-  font-size: 2.4rem;
+  font-size: 2.3rem;
   font-weight: 800;
   text-align: center;
   margin-bottom: 6px;
@@ -886,7 +863,7 @@ body.mask-meaning-active .maskable-meaning:hover {
 }
 
 .fc-meaning-display {
-  font-size: 1.35rem;
+  font-size: 1.3rem;
 }
 
 .fc-example-box {
@@ -903,6 +880,18 @@ body.mask-meaning-active .maskable-meaning:hover {
   align-items: center;
   gap: 8px;
   margin-bottom: 6px;
+}
+
+.fc-example-jp {
+  font-size: 1.05rem;
+  margin: 6px 0;
+}
+
+.fc-example-kana,
+.fc-example-ko {
+  margin: 4px 0;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
 }
 
 .label-sm {
@@ -926,15 +915,25 @@ body.mask-meaning-active .maskable-meaning:hover {
   border-radius: var(--radius-sm);
   border: 1px solid var(--border-strong);
   background-color: var(--bg-elevated);
+  color: var(--text-primary);
   font-size: 0.85rem;
   font-weight: 700;
   cursor: pointer;
 }
 
+.kanji-chip.active,
 .kanji-chip:hover,
 .compare-chip:hover {
   border-color: var(--accent-primary);
   color: var(--accent-primary);
+}
+
+.kanji-related-result {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background-color: var(--bg-elevated);
+  font-size: 0.86rem;
 }
 
 .fc-srs-bar {
@@ -961,13 +960,11 @@ body.mask-meaning-active .maskable-meaning:hover {
   color: var(--accent-matcha);
 }
 
-/* =========================================================
-   퀴즈, 독해, 가이드, 모달 & 반응형 보완
-   ========================================================= */
+/* 퀴즈, 주관식 타일, 독해, 가이드, 모달 */
 .quiz-options-grid,
 .subjective-options {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
   gap: 12px;
   margin-bottom: 14px;
 }
@@ -982,10 +979,115 @@ body.mask-meaning-active .maskable-meaning:hover {
   color: var(--text-secondary);
 }
 
+.quiz-question-box {
+  padding: 16px;
+  border-radius: var(--radius-md);
+  background-color: var(--bg-page);
+  margin-bottom: 14px;
+}
+
+.quiz-prompt-main {
+  font-size: 1.5rem;
+  font-weight: 800;
+  margin-bottom: 6px;
+}
+
+.quiz-prompt-sub,
+.quiz-hint-text {
+  font-size: 0.92rem;
+  color: var(--text-secondary);
+}
+
+.quiz-choices-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.quiz-choice-btn {
+  justify-content: flex-start;
+  text-align: left;
+}
+
+.quiz-feedback-box {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  background-color: var(--bg-elevated);
+}
+
+.feedback-ok {
+  color: var(--accent-matcha);
+}
+
+.feedback-err {
+  color: var(--accent-vermilion);
+}
+
+.tile-selected-view {
+  min-height: 44px;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px dashed var(--border-strong);
+  background-color: var(--bg-page);
+  font-size: 1.2rem;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.tile-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.kana-tile-btn {
+  min-width: 44px;
+  height: 44px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong);
+  background-color: var(--bg-elevated);
+  color: var(--text-primary);
+  font-size: 1.1rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.kana-tile-btn:hover:not(:disabled) {
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+}
+
+.kana-tile-btn.is-used,
+.kana-tile-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
 .reading-layout {
   display: grid;
   grid-template-columns: 320px minmax(0, 1fr);
   gap: 16px;
+}
+
+.reading-list-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-page);
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+}
+
+.reading-list-btn.active {
+  border-color: var(--accent-primary);
+  background-color: var(--accent-primary-soft);
 }
 
 .weak-summary-list,
@@ -996,6 +1098,22 @@ body.mask-meaning-active .maskable-meaning:hover {
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+.custom-deck-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.compare-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
 }
 
 .shortcut-table {
@@ -1033,16 +1151,72 @@ kbd {
 
 .modal-card {
   width: 100%;
-  max-width: 520px;
+  max-width: 560px;
   max-height: 85vh;
   overflow-y: auto;
 }
 
+/* 모바일 반응형 (하단 고정 탭 바 + iOS Safe Area) */
 @media (max-width: 860px) {
+  .sidebar {
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    height: auto;
+    padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+    border-right: none;
+    border-top: 1px solid var(--border-color);
+    background-color: var(--bg-surface);
+  }
+
+  .brand,
+  .sidebar-footer {
+    display: none;
+  }
+
+  .nav-list {
+    flex-direction: row;
+    justify-content: space-around;
+    gap: 2px;
+  }
+
+  .nav-item {
+    flex-direction: column;
+    gap: 2px;
+    padding: 6px 4px;
+    font-size: 0.72rem;
+    text-align: center;
+    border-radius: var(--radius-sm);
+  }
+
+  .nav-icon {
+    font-size: 1.1rem;
+  }
+
+  .main-wrapper {
+    margin-left: 0;
+    padding-bottom: calc(74px + env(safe-area-inset-bottom));
+  }
+
+  .top-header {
+    padding: 10px 14px;
+  }
+
+  #app-content {
+    padding: 16px 14px;
+  }
+
+  .domain-summary-grid,
+  .dashboard-split-grid,
+  .vocab-dash-grid,
+  .guide-grid,
   .filter-row,
   .quiz-options-grid,
   .subjective-options,
-  .reading-layout {
+  .reading-layout,
+  .compare-grid {
     grid-template-columns: 1fr;
   }
 }
