@@ -3,7 +3,7 @@
  * 스키마: id, pattern, word, kana, meaning, connection, category,
  *        collocation, explanation, compareGrammar, example, exampleKana, exampleMeaning, examHistory
  */
-const GRAMMAR_DB_101_150 = [
+window.GRAMMAR_DB_101_150 = [
   {
     id: "g-101",
     pattern: "〜にしては",
