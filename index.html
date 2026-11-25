@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>JLPT N2 문제 확인 및 내용 정리</title>
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="./style.css" />
 </head>
 <body>
   <!-- PC 좌측 사이드바 / 모바일 하단 고정 내비게이션 -->
@@ -14,38 +14,38 @@
         <button type="button" class="brand-home-link" id="brand-home-btn" title="홈(대시보드로 이동)">
           JLPT N2 문제 확인 및 내용 정리
         </button>
-        <span class="badge-dday" id="dday-badge">D-Day</span>
+        <span class="badge-dday" id="dday-badge" data-exam-date="2026-12-06">D-Day</span>
       </div>
 
       <nav>
         <ul class="nav-list" role="tablist">
           <li>
             <button type="button" class="nav-item active" data-main-tab="main-dashboard" role="tab" aria-selected="true">
-              <span class="nav-icon">🏠</span>
+              <span class="nav-icon" aria-hidden="true">🏠</span>
               <span class="nav-label">대시보드</span>
             </button>
           </li>
           <li>
             <button type="button" class="nav-item" data-main-tab="vocab-section" role="tab" aria-selected="false">
-              <span class="nav-icon">📖</span>
+              <span class="nav-icon" aria-hidden="true">📖</span>
               <span class="nav-label">문자·어휘</span>
             </button>
           </li>
           <li>
             <button type="button" class="nav-item" data-main-tab="grammar-section" role="tab" aria-selected="false">
-              <span class="nav-icon">✍️</span>
+              <span class="nav-icon" aria-hidden="true">✍️</span>
               <span class="nav-label">문법</span>
             </button>
           </li>
           <li>
             <button type="button" class="nav-item" data-main-tab="reading-section" role="tab" aria-selected="false">
-              <span class="nav-icon">📄</span>
+              <span class="nav-icon" aria-hidden="true">📄</span>
               <span class="nav-label">독해</span>
             </button>
           </li>
           <li>
             <button type="button" class="nav-item" data-main-tab="guide-section" role="tab" aria-selected="false">
-              <span class="nav-icon">💡</span>
+              <span class="nav-icon" aria-hidden="true">💡</span>
               <span class="nav-label">사용방법</span>
             </button>
           </li>
@@ -149,7 +149,7 @@
           </article>
         </div>
 
-        <!-- 오늘 복습 합산 카드 & 빠른 시작 -->
+        <!-- 오늘 복습 합산 카드 & 취약 현황 -->
         <div class="dashboard-split-grid">
           <article class="card review-due-card">
             <div class="card-header">
@@ -200,7 +200,7 @@
       <section id="panel-vocab-section" class="main-panel" aria-labelledby="vocab-section-heading" hidden>
         <div class="panel-header">
           <h1 id="vocab-section-heading" class="section-title">문자·어휘</h1>
-          <p class="section-subtitle">어휘 전용 대시보드, 단어장, 플래시카드, 퀴즈, 오답노트를 활용하세요.</p>
+          <p class="section-subtitle">어휘 전용 대시보드, 단어장, 플래시카드, 6유형 퀴즈, 오답노트를 활용하세요.</p>
         </div>
 
         <div class="sub-tab-bar" role="tablist" aria-label="문자·어휘 서브 탭">
@@ -423,7 +423,7 @@
             </article>
           </div>
 
-          <!-- SRS 4단계 평가 (미학습 / 모름 / 애매함 / 완벽함) -->
+          <!-- SRS 4단계 평가 -->
           <div class="fc-srs-bar">
             <button type="button" class="btn" id="btn-fc-prev">← 이전 [←]</button>
             <div class="srs-rating-group">
@@ -436,28 +436,42 @@
           </div>
         </div>
 
-        <!-- ②-4 퀴즈 서브패널 -->
+        <!-- ②-4 퀴즈 서브패널 (문자·어휘 6유형 개수 설정 + 실전 문법 통합 지원) -->
         <div id="subpanel-vocab-quiz" class="vocab-subpanel" hidden>
           <div class="card quiz-setup-card" id="vocab-quiz-setup">
             <div class="card-header">
-              <span>📝 퀴즈 / 히라가나 테스트 설정</span>
+              <span>📝 문자·어휘 6가지 문제 유형 맞춤 출제</span>
             </div>
+            <p class="helper-text">각 문제 유형별 출제 개수를 지정해 실전처럼 한 번에 풀 수 있습니다.</p>
+
             <div class="quiz-options-grid">
               <label>
-                <span>출제 영역</span>
-                <select id="vocab-quiz-domain">
-                  <option value="vocab" selected>문자·어휘</option>
-                  <option value="grammar">핵심 문법</option>
-                  <option value="all">통합 (어휘 + 문법)</option>
-                </select>
+                <span>問題 1 한자읽기 개수</span>
+                <input type="number" id="quiz-count-kanji_reading" min="0" max="30" value="2" />
               </label>
               <label>
-                <span>테스트 유형</span>
-                <select id="vocab-quiz-mode">
-                  <option value="mcq">4지선다 퀴즈</option>
-                  <option value="subjective">주관식 히라가나 테스트</option>
-                </select>
+                <span>問題 2 표기 개수</span>
+                <input type="number" id="quiz-count-notation" min="0" max="30" value="2" />
               </label>
+              <label>
+                <span>問題 3 단어형성 개수</span>
+                <input type="number" id="quiz-count-word_formation" min="0" max="30" value="2" />
+              </label>
+              <label>
+                <span>問題 4 문맥구성 개수</span>
+                <input type="number" id="quiz-count-context_fill" min="0" max="30" value="2" />
+              </label>
+              <label>
+                <span>問題 5 유의표현 개수</span>
+                <input type="number" id="quiz-count-paraphrase" min="0" max="30" value="1" />
+              </label>
+              <label>
+                <span>問題 6 용법 개수</span>
+                <input type="number" id="quiz-count-usage" min="0" max="30" value="1" />
+              </label>
+            </div>
+
+            <div class="quiz-options-grid" style="margin-top: 10px;">
               <label>
                 <span>출제 범위</span>
                 <select id="vocab-quiz-scope">
@@ -471,7 +485,22 @@
                 </select>
               </label>
               <label>
-                <span>문항 수</span>
+                <span>빠른 프리셋 모드</span>
+                <select id="vocab-quiz-mode">
+                  <option value="six_all" selected>6가지 문제 유형 전체</option>
+                  <option value="kanji_reading">問題 1 한자읽기만</option>
+                  <option value="notation">問題 2 표기만</option>
+                  <option value="word_formation">問題 3 단어형성만</option>
+                  <option value="context_fill">問題 4 문맥구성만</option>
+                  <option value="paraphrase">問題 5 유의표현만</option>
+                  <option value="usage">問題 6 용법만</option>
+                  <option value="exam_q7">問題 7 문법형식 판단</option>
+                  <option value="exam_q8">問題 8 문장 만들기(★)</option>
+                  <option value="exam_all">실전 문법 통합 (問題 7·8)</option>
+                </select>
+              </label>
+              <label>
+                <span>프리셋 문항 수</span>
                 <select id="vocab-quiz-count">
                   <option value="5">5문제</option>
                   <option value="10" selected>10문제</option>
@@ -479,28 +508,16 @@
                   <option value="ALL">전체</option>
                 </select>
               </label>
+              <input type="hidden" id="vocab-quiz-domain" value="vocab" />
             </div>
 
-            <div class="subjective-options" id="subjective-extra-options" hidden>
-              <label class="checkbox-label">
-                <input type="checkbox" id="subj-hide-meaning" />
-                <span>뜻 숨김 모드</span>
-              </label>
-              <label class="checkbox-label">
-                <input type="checkbox" id="subj-first-hint" />
-                <span>첫글자 힌트 표시</span>
-              </label>
-              <label>
-                <span>입력 방식</span>
-                <select id="subj-input-method">
-                  <option value="direct">히라가나 직접 입력</option>
-                  <option value="tiles">히라가나 타일 순서 클릭</option>
-                </select>
-              </label>
-            </div>
-
-            <div class="quick-action-row">
-              <button type="button" class="btn btn-primary" id="btn-start-vocab-quiz">테스트 시작</button>
+            <div class="quick-action-row" style="margin-top: 12px;">
+              <button type="button" class="btn btn-primary" id="btn-start-six-type-quiz">
+                유형별 개수대로 퀴즈 시작
+              </button>
+              <button type="button" class="btn btn-secondary" id="btn-start-vocab-quiz">
+                프리셋으로 시작
+              </button>
             </div>
           </div>
 
@@ -526,7 +543,7 @@
       <section id="panel-grammar-section" class="main-panel" aria-labelledby="grammar-section-heading" hidden>
         <div class="panel-header">
           <h1 id="grammar-section-heading" class="section-title">핵심 문법</h1>
-          <p class="section-subtitle">문법 대시보드, 패턴 목록, 플래시카드, 퀴즈로 N2 문법을 학습하세요.</p>
+          <p class="section-subtitle">문법 대시보드, 패턴 목록, 플래시카드, 問題 7·8·9 맞춤 퀴즈로 N2 문법을 학습하세요.</p>
         </div>
 
         <div class="sub-tab-bar" role="tablist" aria-label="문법 서브 탭">
@@ -540,7 +557,7 @@
             문법 플래시카드
           </button>
           <button type="button" class="sub-tab-item" data-grammar-subtab="grammar-quiz" role="tab" aria-selected="false">
-            문법 퀴즈
+            문법 퀴즈 (問題 7·8·9)
           </button>
         </div>
 
@@ -580,7 +597,7 @@
             <div class="quick-action-row">
               <button type="button" class="btn btn-primary" id="btn-grammar-start-due-fc">오늘 복습 문법 플래시카드</button>
               <button type="button" class="btn btn-secondary" id="btn-grammar-start-all-fc">전체 문법 플래시카드</button>
-              <button type="button" class="btn" id="btn-grammar-start-quiz">문법 퀴즈 시작</button>
+              <button type="button" class="btn" id="btn-grammar-start-quiz">문법 퀴즈 (問題 7·8·9) 시작</button>
               <button type="button" class="btn" id="btn-grammar-go-list">문법 목록 보기</button>
             </div>
           </div>
@@ -680,18 +697,23 @@
           </div>
         </div>
 
-        <!-- ③-4 문법 퀴즈 -->
+        <!-- ③-4 문법 퀴즈 (quiz.js renderTypeCountConfigurator & startGrammarCustomQuiz 연동) -->
         <div id="subpanel-grammar-quiz" class="grammar-subpanel" hidden>
           <div class="card">
             <div class="card-header">
-              <span>📝 문법 전용 퀴즈</span>
+              <span>📝 문법 실전 유형별 맞춤 출제 (問題 7 · 問題 8 ★ · 問題 9)</span>
             </div>
-            <p class="helper-text">문법 패턴과 예문 공란을 바탕으로 4지선다 문법 퀴즈를 진행합니다.</p>
-            <div class="quick-action-row">
-              <button type="button" class="btn btn-primary" id="btn-run-grammar-quiz-10">문법 10문제 시작</button>
-              <button type="button" class="btn" id="btn-run-grammar-quiz-all">문법 전체 시작</button>
+            <p class="helper-text">
+              問題 7(문법형식), 問題 8(문장만들기 ★), 問題 9(글의 문법) 개수를 직접 지정해 DB 기반 문제를 생성합니다.
+            </p>
+            <!-- quiz.js의 renderTypeCountConfigurator()가 자동으로 입력 UI를 렌더링하는 영역 -->
+            <div id="grammar-quiz-config"></div>
+            <div class="quick-action-row" style="margin-bottom: 10px;">
+              <button type="button" class="btn" id="btn-run-grammar-quiz-10">기출 문제 7·8 빠른 10문항</button>
+              <button type="button" class="btn" id="btn-run-grammar-quiz-all">기출 문제 7·8 전체</button>
             </div>
-            <div id="grammar-quiz-runner" style="margin-top: 14px;"></div>
+            <!-- quiz.js의 startGrammarCustomQuiz / startGrammarQuiz 결과가 렌더링되는 영역 -->
+            <div id="grammar-quiz-runner" hidden></div>
           </div>
         </div>
 
@@ -742,8 +764,8 @@
             <div class="card-header"><span>📌 5대 영역 학습 가이드</span></div>
             <ul class="guide-list">
               <li><strong>대시보드:</strong> 어휘·문법·독해 진도율과 오늘 복습 합계, 취약 현황 및 JSON 백업/복원을 관리합니다.</li>
-              <li><strong>문자·어휘:</strong> 어휘 대시보드에서 시작해 단어장(50개 단위 지연 렌더링), 플래시카드, 퀴즈, 오답노트를 이어갑니다.</li>
-              <li><strong>문법:</strong> 문법 대시보드, 접속 형태·상태 필터, 유사 문법 비교, 문법 플래시카드와 문법 퀴즈를 제공합니다.</li>
+              <li><strong>문자·어휘:</strong> 어휘 대시보드, 단어장(50개 단위 지연 렌더링), 플래시카드, 문제 1~6 맞춤 퀴즈, 오답노트를 제공합니다.</li>
+              <li><strong>문법:</strong> 문법 대시보드, 접속 형태·상태 필터, 유사 문법 비교, 문법 플래시카드, 문제 7·8·9 맞춤 퀴즈를 제공합니다.</li>
               <li><strong>독해:</strong> 지문 유형별 본문과 문맥 완성 문제, 어휘·문법 연계 해설을 학습합니다.</li>
             </ul>
           </article>
@@ -807,19 +829,18 @@
     </div>
   </div>
 
-  <!-- 스크립트 로드 순서: [개별 DB들] -> data.js -> study.js -> quiz.js -->
-  <script src="data-kanji-reading.js" defer></script>
-  <script src="data-notation-exam.js" defer></script>
-  <script src="data-word-formation.js" defer></script>
-  <script src="data-context-composition.js" defer></script>
-  <script src="data-synonym-expr.js" defer></script>
-  <script src="data-usage-exam.js" defer></script>
-  <script src="data-grammar_4.js" defer></script>
-  <script src="data-grammar_3.js" defer></script>  
-  <script src="data-grammar_2.js" defer></script>
-  <script src="data-grammar.js" defer></script>
-  <script src="data.js" defer></script>
-  <script src="study.js" defer></script>
-  <script src="quiz.js" defer></script>
+  <!-- 스크립트 로드 순서: [개별 어휘 DB] -> [개별 문법 DB] -> data.js -> study.js -> quiz.js -->
+  <script src="./data-kanji-reading.js" defer></script>
+  <script src="./data-notation-exam.js" defer></script>
+  <script src="./data-word-formation.js" defer></script>
+  <script src="./data-context-composition.js" defer></script>
+  <script src="./data-synonym-expr.js" defer></script>
+  <script src="./data-usage-exam.js" defer></script>
+  <script src="./data-grammar.js" defer></script>
+  <script src="./data-grammar_2.js" defer></script>
+  <script src="./data-grammar_3.js" defer></script>
+  <script src="./data.js" defer></script>
+  <script src="./study.js" defer></script>
+  <script src="./quiz.js" defer></script>
 </body>
 </html>
