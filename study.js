@@ -15,8 +15,9 @@
   let activeMainTab = "main-dashboard";
   let activeVocabSubTab = "vocab-dashboard";
   let activeGrammarSubTab = "grammar-dashboard";
-  let activeReadingCategory = "ALL";
-  let selectedReadingId = DATA.READING_DB[0]?.id ?? null;
+  let activeReadingCategory = "ALL"; // "ALL" | "단문" | "중문" | "장문" | "통합이해" | "정보검색" | "TIPS"
+  let selectedReadingId = DATA.READING_DB?.[0]?.id ?? null;
+  let readingShowTranslation = false;
 
   // 단어장 지연 렌더링 & 다중 선택 상태
   let vocabRenderedCount = VOCAB_PAGE_SIZE;
@@ -67,13 +68,16 @@
   }
 
   function speakJapanese(text, rate = appState.ttsRate) {
-    const raw = String(text || "").trim();
+    const raw = String(text || "").replace(/〜/g, "").trim();
     if (!raw || typeof window.speechSynthesis === "undefined") return;
     try {
       window.speechSynthesis.cancel();
       const utter = new SpeechSynthesisUtterance(raw);
       utter.lang = "ja-JP";
       utter.rate = Number.isFinite(Number(rate)) ? Number(rate) : 1.0;
+      const voices = window.speechSynthesis.getVoices();
+      const jaVoice = voices.find((v) => v.lang && v.lang.toLowerCase().startsWith("ja"));
+      if (jaVoice) utter.voice = jaVoice;
       window.speechSynthesis.speak(utter);
     } catch (_) {
       // TTS 미지원 환경 무시
@@ -196,8 +200,16 @@
     } else if (tabName === "grammar-section") {
       switchGrammarSubTab(options.grammarSubTab || "grammar-dashboard", options);
     } else if (tabName === "reading-section") {
-      renderReadingSection();
+      if (options.readingCategory) {
+        switchReadingCategory(options.readingCategory);
+      } else {
+        renderReadingSection();
+      }
     }
+
+    document.dispatchEvent(
+      new CustomEvent("jlpt:main-tab-changed", { detail: { tabId: tabName } })
+    );
 
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -294,7 +306,6 @@
     }
   }
 
-  // 레거시 탭 이름 호환 헬퍼 (quiz.js 등에서 호출 가능)
   function switchTab(legacyOrMainTab) {
     if (legacyOrMainTab === "quiz-mcq" || legacyOrMainTab === "quiz-input") {
       switchMainTab("vocab-section", { vocabSubTab: "vocab-quiz" });
@@ -346,9 +357,16 @@
     setText("dash-grammar-total", summary.grammar.total);
     setBarWidth("dash-grammar-bar", summary.grammar.rate);
 
+    const readingDone =
+      summary.readingDone !== undefined ? summary.readingDone : summary.reading.completed;
+    const readingTotal =
+      summary.readingTotal !== undefined ? summary.readingTotal : summary.reading.total;
+    const weakReading =
+      summary.weakReading !== undefined ? summary.weakReading : summary.reading.incomplete;
+
     setText("dash-reading-rate", `${summary.reading.rate}%`);
-    setText("dash-reading-done", summary.reading.completed);
-    setText("dash-reading-total", summary.reading.total);
+    setText("dash-reading-done", readingDone);
+    setText("dash-reading-total", readingTotal);
     setBarWidth("dash-reading-bar", summary.reading.rate);
 
     setText("dash-due-total", `${summary.totalDue}개`);
@@ -357,7 +375,7 @@
 
     setText("dash-weak-ambiguous", summary.weak.ambiguousVocab);
     setText("dash-weak-wrong", summary.weak.totalWrongRecords);
-    setText("dash-weak-reading", summary.weak.incompleteReading);
+    setText("dash-weak-reading", weakReading);
   }
 
   function renderVocabDashboard() {
@@ -1037,71 +1055,511 @@
       .join("");
   }
 
-  function renderReadingSection() {
-    const listCol = document.getElementById("reading-passage-list");
-    const detailCol = document.getElementById("reading-detail-view");
-    if (!listCol || !detailCol) return;
+  // =========================================================
+  // 6-B. 독해 섹션 (#panel-reading-section) & 유형별 풀이 팁 서브 탭
+  // =========================================================
+  function getReadingDbList() {
+    return Array.isArray(DATA.READING_DB) ? DATA.READING_DB : [];
+  }
 
-    const items = DATA.READING_DB.filter(
-      (r) => activeReadingCategory === "ALL" || r.category === activeReadingCategory
+  function getFilteredReadingPassages(category = activeReadingCategory) {
+    const db = getReadingDbList();
+    if (!category || category === "ALL" || category === "TIPS") {
+      return db.slice();
+    }
+    return db.filter((item) => String(item.category) === String(category));
+  }
+
+  function getReadingProgressEntry(readingId) {
+    const key = String(readingId || "");
+    appState.readingProgress = appState.readingProgress || {};
+    const raw = appState.readingProgress[key];
+    if (typeof DATA.sanitizeReadingProgressEntry === "function") {
+      return DATA.sanitizeReadingProgressEntry(raw);
+    }
+    return {
+      completed: Boolean(raw?.completed),
+      solvedQuestions:
+        raw && typeof raw.solvedQuestions === "object" ? { ...raw.solvedQuestions } : {},
+      completedAt: raw?.completedAt || null
+    };
+  }
+
+  function formatReadingPassageHtml(rawText) {
+    const escaped = escapeHtml(rawText || "");
+    const withUnderline = escaped.replace(
+      /\[\[u\]\]([\s\S]*?)\[\[\/u\]\]/g,
+      '<span class="reading-underline" lang="ja">$1</span>'
     );
+    const withBlank = withUnderline.replace(
+      /\[\[blank\]\]([\s\S]*?)\[\[\/blank\]\]/g,
+      '<span class="reading-blank" lang="ja">$1</span>'
+    );
+    const paragraphs = withBlank
+      .split(/\n{2,}|\n/)
+      .map((p) => p.trim())
+      .filter(Boolean);
 
-    if (!items.length) {
-      listCol.innerHTML = '<p class="helper-text">해당 유형의 독해 지문이 아직 없습니다.</p>';
-      detailCol.innerHTML = '<p class="helper-text">지문을 추가하면 본문과 문제, 어휘·문법 연계 해설이 표시됩니다.</p>';
+    if (!paragraphs.length) return `<p lang="ja"></p>`;
+    return paragraphs.map((p) => `<p lang="ja">${p.replace(/\n/g, "<br />")}</p>`).join("");
+  }
+
+  function renderReadingSubTabsState() {
+    document.querySelectorAll("#panel-reading-section [data-reading-category]").forEach((btn) => {
+      const cat = btn.getAttribute("data-reading-category");
+      const isMatch = cat === activeReadingCategory;
+      btn.classList.toggle("active", isMatch);
+      btn.setAttribute("aria-selected", String(isMatch));
+    });
+
+    const practiceView = document.getElementById("reading-practice-view");
+    const tipsView = document.getElementById("reading-tips-view");
+    const isTips = activeReadingCategory === "TIPS";
+
+    if (practiceView) practiceView.hidden = isTips;
+    if (tipsView) tipsView.hidden = !isTips;
+  }
+
+  function renderReadingPassageListView(passages) {
+    const listCol = document.getElementById("reading-passage-list");
+    if (!listCol) return;
+
+    const headingText =
+      activeReadingCategory === "ALL" ? "전체 지문 목록" : `${activeReadingCategory} 지문 목록`;
+
+    if (!passages.length) {
+      listCol.innerHTML = `
+        <div class="card-header">
+          <span>${escapeHtml(headingText)}</span>
+          <span class="badge">0편</span>
+        </div>
+        <div class="reading-empty-state">
+          <p class="helper-text">선택한 <strong>${escapeHtml(activeReadingCategory)}</strong> 유형에 등록된 지문이 없습니다.</p>
+          <p class="helper-text">다른 유형 탭을 선택하거나 <strong>💡 유형별 문제 풀이 팁</strong>에서 출제 요령을 먼저 확인해 보세요.</p>
+        </div>
+      `;
       return;
     }
 
-    if (!items.some((r) => String(r.id) === String(selectedReadingId))) {
-      selectedReadingId = items[0].id;
-    }
+    const cardsHtml = passages
+      .map((item) => {
+        const idStr = String(item.id);
+        const entry = getReadingProgressEntry(idStr);
+        const isActive = idStr === String(selectedReadingId);
+        const qCount = Array.isArray(item.questions) ? item.questions.length : 0;
+        const estMin = Number(item.estimatedMinutes) || 3;
+        const statusClass = entry.completed ? "reading-status-done" : "reading-status-todo";
+        const statusText = entry.completed ? "완료" : "미완료";
 
-    listCol.innerHTML = items
-      .map(
-        (r) => `
-      <button type="button" class="reading-list-btn ${
-        String(r.id) === String(selectedReadingId) ? "active" : ""
-      }" data-select-reading="${escapeHtml(r.id)}">
-        <span class="badge">${escapeHtml(r.category)}</span>
-        <strong>${escapeHtml(r.title)}</strong>
-      </button>
-    `
-      )
+        return `
+          <button
+            type="button"
+            class="reading-list-btn ${isActive ? "active" : ""}"
+            data-select-reading="${escapeHtml(idStr)}"
+            aria-pressed="${String(isActive)}"
+          >
+            <div class="reading-item-top">
+              <span class="badge">${escapeHtml(item.category || "독해")}</span>
+              <span class="badge ${statusClass}">${statusText}</span>
+            </div>
+            <div class="reading-item-title">${escapeHtml(item.title || "")}</div>
+            <div class="reading-item-meta">
+              <span>${escapeHtml(item.examTypeLabel || item.category || "")}</span>
+              <span>⏱ ${estMin}분 · ${qCount}문항</span>
+            </div>
+          </button>
+        `;
+      })
       .join("");
 
-    const current = items.find((r) => String(r.id) === String(selectedReadingId)) || items[0];
-    const questionsHtml = Array.isArray(current.questions)
-      ? current.questions
-          .map(
-            (q, idx) => `
-          <div class="reading-q-box">
-            <p><strong>문제 ${idx + 1}.</strong> ${escapeHtml(q.prompt || "")}</p>
-            <p class="helper-text">정답: ${escapeHtml(q.answer || "")} — ${escapeHtml(q.explanation || "")}</p>
-          </div>
-        `
-          )
-          .join("")
-      : '<p class="helper-text">등록된 문항이 없습니다.</p>';
-
-    detailCol.innerHTML = `
+    listCol.innerHTML = `
       <div class="card-header">
-        <span lang="ja">${escapeHtml(current.title)}</span>
-        <span class="badge">${escapeHtml(current.category)}</span>
+        <span>${escapeHtml(headingText)}</span>
+        <span class="badge">${passages.length}편</span>
       </div>
-      <div class="reading-passage-text maskable-target" lang="ja">${escapeHtml(current.passage)}</div>
-      ${
-        current.translation
-          ? `<p class="helper-text maskable-meaning">${escapeHtml(current.translation)}</p>`
-          : ""
-      }
-      <hr />
-      <div class="reading-questions">${questionsHtml}</div>
-      <div class="quick-action-row">
-        <button type="button" class="btn btn-secondary" id="btn-complete-reading" data-reading-id="${escapeHtml(
-          current.id
-        )}">지문 학습 완료 처리</button>
+      <div>${cardsHtml}</div>
+    `;
+  }
+
+  function renderReadingPassageBody(passageObj) {
+    const isAb =
+      passageObj.category === "통합이해" ||
+      Boolean(passageObj.passageA) ||
+      Boolean(passageObj.passageB);
+
+    if (isAb && (passageObj.passageA || passageObj.passageB)) {
+      return `
+        <div class="reading-ab-grid">
+          <div class="reading-ab-card">
+            <span class="reading-ab-label">文章 A</span>
+            <div class="reading-passage-body">${formatReadingPassageHtml(passageObj.passageA)}</div>
+          </div>
+          <div class="reading-ab-card">
+            <span class="reading-ab-label">文章 B</span>
+            <div class="reading-passage-body">${formatReadingPassageHtml(passageObj.passageB)}</div>
+          </div>
+        </div>
+      `;
+    }
+
+    if (passageObj.category === "정보검색") {
+      return `
+        <div class="reading-info-box">
+          ${formatReadingPassageHtml(passageObj.passage)}
+        </div>
+      `;
+    }
+
+    return `
+      <div class="reading-passage-body">
+        ${formatReadingPassageHtml(passageObj.passage)}
       </div>
     `;
+  }
+
+  function renderReadingTranslationBlock(passageObj) {
+    if (!readingShowTranslation) return "";
+
+    const isAb =
+      passageObj.category === "통합이해" ||
+      Boolean(passageObj.translationA) ||
+      Boolean(passageObj.translationB);
+
+    if (isAb && (passageObj.translationA || passageObj.translationB)) {
+      return `
+        <div class="reading-translation-box maskable-meaning">
+          <div class="label-sm">전체 한국어 해석 (A / B)</div>
+          <p><strong>[文章 A 해석]</strong> ${escapeHtml(passageObj.translationA || "")}</p>
+          <p style="margin-bottom:0;"><strong>[文章 B 해석]</strong> ${escapeHtml(passageObj.translationB || "")}</p>
+        </div>
+      `;
+    }
+
+    return `
+      <div class="reading-translation-box maskable-meaning">
+        <div class="label-sm">전체 한국어 해석</div>
+        <p style="margin-bottom:0;">${escapeHtml(passageObj.translation || "해석 내용이 없습니다.")}</p>
+      </div>
+    `;
+  }
+
+  function renderReadingRelatedChips(passageObj) {
+    const list = Array.isArray(passageObj.relatedVocabGrammar)
+      ? passageObj.relatedVocabGrammar
+      : [];
+    if (!list.length) return "";
+
+    const chipsHtml = list
+      .map((entry) => {
+        const term = escapeHtml(entry.term || "");
+        const reading = entry.reading ? ` (${escapeHtml(entry.reading)})` : "";
+        const meaning = escapeHtml(entry.meaning || "");
+        const note = entry.note ? ` · ${escapeHtml(entry.note)}` : "";
+
+        return `
+          <div class="reading-link-chip">
+            <strong lang="ja">${term}</strong>
+            <span lang="ja">${reading}</span>
+            <span class="maskable-meaning">— ${meaning}</span>
+            ${note ? `<span class="helper-text" style="margin:0;">${note}</span>` : ""}
+          </div>
+        `;
+      })
+      .join("");
+
+    return `
+      <div style="margin-top:4px;">
+        <div class="label-sm" style="margin-bottom:6px;">핵심 어휘·문법 연계 포인트</div>
+        <div class="reading-link-chips">${chipsHtml}</div>
+      </div>
+    `;
+  }
+
+  function renderReadingQuestionExplanation(passageObj, qObj, selectedIdx) {
+    if (selectedIdx === undefined || selectedIdx === null) return "";
+
+    const answerIdx = Number(qObj.answerIndex);
+    const isCorrect = Number(selectedIdx) === answerIdx;
+    const wrongMap =
+      qObj.wrongReasons && typeof qObj.wrongReasons === "object" ? qObj.wrongReasons : {};
+    const wrongReason = !isCorrect
+      ? wrongMap[String(selectedIdx)] ?? wrongMap[selectedIdx] ?? ""
+      : "";
+
+    return `
+      <div class="reading-explanation-box">
+        <div class="${isCorrect ? "feedback-ok" : "feedback-err"}">
+          <strong>${isCorrect ? "✓ 정답입니다!" : `✕ 오답입니다. (정답: ${answerIdx + 1}번)`}</strong>
+        </div>
+
+        ${
+          qObj.clueSentence
+            ? `
+          <div class="reading-clue-box">
+            <div class="label-sm">정답 근거 문장</div>
+            <div lang="ja" style="margin-top:4px;">${escapeHtml(qObj.clueSentence)}</div>
+          </div>
+        `
+            : ""
+        }
+
+        ${
+          wrongReason
+            ? `
+          <div class="helper-text" style="margin:0;">
+            <strong>오답 소거 포인트 (${Number(selectedIdx) + 1}번 선택):</strong> ${escapeHtml(wrongReason)}
+          </div>
+        `
+            : ""
+        }
+
+        <div style="font-size:0.9rem;">
+          <strong>해설 및 문맥 흐름:</strong> ${escapeHtml(qObj.explanation || "")}
+        </div>
+
+        ${renderReadingRelatedChips(passageObj)}
+      </div>
+    `;
+  }
+
+  function renderReadingDetailView(passages) {
+    const detailCol = document.getElementById("reading-detail-view");
+    if (!detailCol) return;
+
+    if (!passages.length) {
+      detailCol.innerHTML = `
+        <div class="reading-empty-state">
+          <p class="helper-text">표시할 독해 지문이 없습니다. 다른 유형 탭을 선택해 주세요.</p>
+        </div>
+      `;
+      return;
+    }
+
+    const current =
+      passages.find((r) => String(r.id) === String(selectedReadingId)) || passages[0];
+    selectedReadingId = String(current.id);
+
+    const entry = getReadingProgressEntry(current.id);
+    const footnotesHtml =
+      Array.isArray(current.footnotes) && current.footnotes.length
+        ? `
+          <div class="reading-footnote" lang="ja">
+            ${current.footnotes.map((fn) => `<div>${escapeHtml(fn)}</div>`).join("")}
+          </div>
+        `
+        : "";
+
+    const questions = Array.isArray(current.questions) ? current.questions : [];
+    const questionsHtml = questions
+      .map((q, qIdx) => {
+        const qKey = String(q.qId || `${current.id}-q${qIdx + 1}`);
+        const selectedIdx = entry.solvedQuestions[qKey];
+        const hasAnswered = selectedIdx !== undefined && selectedIdx !== null;
+        const answerIdx = Number(q.answerIndex);
+
+        const choicesHtml = (Array.isArray(q.choices) ? q.choices : [])
+          .map((choiceText, cIdx) => {
+            let stateClass = "";
+            if (hasAnswered) {
+              if (cIdx === answerIdx) stateClass = "is-correct";
+              else if (cIdx === Number(selectedIdx)) stateClass = "is-wrong";
+            } else if (cIdx === Number(selectedIdx)) {
+              stateClass = "is-selected";
+            }
+
+            return `
+              <button
+                type="button"
+                class="reading-choice-btn ${stateClass}"
+                data-reading-id="${escapeHtml(current.id)}"
+                data-question-id="${escapeHtml(qKey)}"
+                data-choice-index="${cIdx}"
+              >
+                <span lang="ja">${escapeHtml(choiceText)}</span>
+              </button>
+            `;
+          })
+          .join("");
+
+        return `
+          <div class="reading-question-block" data-question-id="${escapeHtml(qKey)}">
+            <p class="reading-question-stem" lang="ja">
+              Q${qIdx + 1}. ${escapeHtml(q.question || "")}
+            </p>
+            <div class="reading-choices-list">${choicesHtml}</div>
+            ${renderReadingQuestionExplanation(current, q, selectedIdx)}
+          </div>
+        `;
+      })
+      .join("");
+
+    detailCol.innerHTML = `
+      <div>
+        <div class="reading-passage-header">
+          <div>
+            <div style="display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin-bottom:6px;">
+              <span class="badge">${escapeHtml(current.category || "독해")}</span>
+              <span class="badge badge-conn">${escapeHtml(current.examTypeLabel || "")}</span>
+              <span class="badge ${entry.completed ? "reading-status-done" : "reading-status-todo"}">
+                ${entry.completed ? "✓ 완료" : "미완료"}
+              </span>
+            </div>
+            <h2 class="reading-passage-title" lang="ja">${escapeHtml(current.title || "")}</h2>
+          </div>
+
+          <div class="reading-toolbar-actions">
+            <button
+              type="button"
+              class="btn"
+              id="btn-reading-tts"
+              data-reading-id="${escapeHtml(current.id)}"
+            >
+              🔊 지문 듣기
+            </button>
+            <button
+              type="button"
+              class="btn ${readingShowTranslation ? "btn-secondary" : ""}"
+              id="btn-reading-toggle-translation"
+            >
+              ${readingShowTranslation ? "전체 해석 숨기기" : "전체 해석 보기"}
+            </button>
+            <button
+              type="button"
+              class="btn ${entry.completed ? "btn-secondary" : "btn-primary"}"
+              id="btn-complete-reading"
+              data-reading-id="${escapeHtml(current.id)}"
+            >
+              ${entry.completed ? "✓ 학습 완료됨 (취소)" : "지문 학습 완료 표시"}
+            </button>
+          </div>
+        </div>
+
+        ${renderReadingPassageBody(current)}
+        ${footnotesHtml}
+        ${renderReadingTranslationBlock(current)}
+      </div>
+
+      <div>
+        <div class="card-header">
+          <span>문항 풀이 및 해설 (${questions.length}문항)</span>
+        </div>
+        ${questionsHtml || '<p class="helper-text">등록된 문항이 없습니다.</p>'}
+      </div>
+    `;
+  }
+
+  function renderReadingSection() {
+    renderReadingSubTabsState();
+    if (activeReadingCategory === "TIPS") {
+      return;
+    }
+    const passages = getFilteredReadingPassages(activeReadingCategory);
+    renderReadingPassageListView(passages);
+    renderReadingDetailView(passages);
+  }
+
+  function switchReadingCategory(category, options = {}) {
+    const allowed = new Set(["ALL", "단문", "중문", "장문", "통합이해", "정보검색", "TIPS"]);
+    const nextCategory = allowed.has(category) ? category : "ALL";
+    activeReadingCategory = nextCategory;
+
+    if (nextCategory !== "TIPS") {
+      const candidates = getFilteredReadingPassages(nextCategory);
+      if (
+        candidates.length > 0 &&
+        !candidates.some((r) => String(r.id) === String(selectedReadingId))
+      ) {
+        selectedReadingId = String(candidates[0].id);
+      }
+    }
+
+    renderReadingSection();
+
+    if (options.scrollDetailOnMobile && window.innerWidth < 860 && nextCategory !== "TIPS") {
+      document
+        .getElementById("reading-detail-view")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }
+
+  function handleReadingSelectPassage(readingId) {
+    if (!readingId) return;
+    selectedReadingId = String(readingId);
+    renderReadingSection();
+
+    if (window.innerWidth < 860) {
+      document
+        .getElementById("reading-detail-view")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }
+
+  function handleReadingSelectChoice(readingId, qId, choiceIndex) {
+    const rKey = String(readingId || "");
+    const qKey = String(qId || "");
+    const cIdx = Number(choiceIndex);
+    if (!rKey || !qKey || !Number.isInteger(cIdx) || cIdx < 0) return;
+
+    if (typeof DATA.updateReadingAnswer === "function") {
+      appState = DATA.updateReadingAnswer(rKey, qKey, cIdx, appState);
+      applyThemeAndGlobalMasks();
+      renderMainDashboard();
+      renderReadingSection();
+      return;
+    }
+
+    appState.readingProgress = appState.readingProgress || {};
+    const prev = getReadingProgressEntry(rKey);
+    const passageObj = getReadingDbList().find((r) => String(r.id) === rKey);
+    const totalQ = Array.isArray(passageObj?.questions) ? passageObj.questions.length : 0;
+    const nextSolved = { ...prev.solvedQuestions, [qKey]: cIdx };
+    const allSolved =
+      totalQ > 0 && passageObj.questions.every((q) => nextSolved[String(q.qId)] !== undefined);
+    const completed = prev.completed || allSolved;
+
+    appState.readingProgress[rKey] = {
+      completed,
+      solvedQuestions: nextSolved,
+      completedAt: completed ? prev.completedAt || new Date().toISOString() : null
+    };
+    persistState();
+    renderReadingSection();
+  }
+
+  function handleReadingToggleComplete(readingId) {
+    const rKey = String(readingId || selectedReadingId || "");
+    if (!rKey) return;
+
+    if (typeof DATA.toggleReadingCompleted === "function") {
+      appState = DATA.toggleReadingCompleted(rKey, null, appState);
+      applyThemeAndGlobalMasks();
+      renderMainDashboard();
+      renderReadingSection();
+      return;
+    }
+
+    appState.readingProgress = appState.readingProgress || {};
+    const prev = getReadingProgressEntry(rKey);
+    const nextCompleted = !prev.completed;
+
+    appState.readingProgress[rKey] = {
+      completed: nextCompleted,
+      solvedQuestions: { ...prev.solvedQuestions },
+      completedAt: nextCompleted ? prev.completedAt || new Date().toISOString() : null
+    };
+    persistState();
+    renderReadingSection();
+  }
+
+  function handleReadingSpeak(readingId) {
+    const target =
+      getReadingDbList().find((r) => String(r.id) === String(readingId || selectedReadingId)) ||
+      null;
+    if (!target) return;
+
+    const text =
+      target.passage || [target.passageA, target.passageB].filter(Boolean).join(" ");
+    speakJapanese(text);
   }
 
   // =========================================================
@@ -1167,6 +1625,7 @@
           renderMainDashboard();
           renderVocabDashboard();
           renderGrammarDashboard();
+          renderReadingSection();
           setText("backup-status-msg", "학습 데이터를 성공적으로 복원했습니다.");
         } else {
           setText("backup-status-msg", res.error || "복원에 실패했습니다.");
@@ -1184,6 +1643,7 @@
       renderMainDashboard();
       renderVocabDashboard();
       renderGrammarDashboard();
+      renderReadingSection();
       setText("backup-status-msg", "전체 학습 데이터가 초기화되었습니다.");
     });
 
@@ -1610,39 +2070,55 @@
       if (modal) modal.hidden = true;
     });
 
-    // 독해 카테고리 & 상세 선택
-    document.querySelectorAll(".sub-tab-item[data-reading-category]").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        activeReadingCategory = btn.getAttribute("data-reading-category") || "ALL";
-        document.querySelectorAll(".sub-tab-item[data-reading-category]").forEach((b) => {
-          const act = b === btn;
-          b.classList.toggle("active", act);
-          b.setAttribute("aria-selected", String(act));
-        });
+    // 독해 섹션 이벤트 (#panel-reading-section)
+    const readingSectionEl = document.getElementById("panel-reading-section");
+    readingSectionEl?.addEventListener("click", (e) => {
+      const target = e.target;
+      if (!(target instanceof HTMLElement)) return;
+
+      const catBtn = target.closest("[data-reading-category]");
+      if (catBtn) {
+        switchReadingCategory(catBtn.getAttribute("data-reading-category") || "ALL");
+        return;
+      }
+
+      const listBtn = target.closest("[data-select-reading]");
+      if (listBtn) {
+        handleReadingSelectPassage(listBtn.getAttribute("data-select-reading"));
+        return;
+      }
+
+      if (target.closest("#btn-reading-tts")) {
+        const btn = target.closest("#btn-reading-tts");
+        handleReadingSpeak(btn.getAttribute("data-reading-id"));
+        return;
+      }
+
+      if (target.closest("#btn-reading-toggle-translation")) {
+        readingShowTranslation = !readingShowTranslation;
         renderReadingSection();
-      });
-    });
+        return;
+      }
 
-    document.getElementById("reading-passage-list")?.addEventListener("click", (e) => {
-      const btn = e.target.closest("[data-select-reading]");
-      if (!btn) return;
-      selectedReadingId = btn.getAttribute("data-select-reading");
-      renderReadingSection();
-    });
+      const completeBtn = target.closest("#btn-complete-reading");
+      if (completeBtn) {
+        handleReadingToggleComplete(completeBtn.getAttribute("data-reading-id"));
+        return;
+      }
 
-    document.getElementById("reading-detail-view")?.addEventListener("click", (e) => {
-      const btn = e.target.closest("#btn-complete-reading");
-      if (!btn) return;
-      const rId = btn.getAttribute("data-reading-id");
-      if (!rId) return;
-      appState.readingProgress[rId] = {
-        completed: true,
-        score: 1,
-        total: 1,
-        updatedAt: new Date().toISOString()
-      };
-      persistState();
-      renderReadingSection();
+      const choiceBtn = target.closest(".reading-choice-btn");
+      if (choiceBtn) {
+        handleReadingSelectChoice(
+          choiceBtn.getAttribute("data-reading-id"),
+          choiceBtn.getAttribute("data-question-id"),
+          choiceBtn.getAttribute("data-choice-index")
+        );
+        return;
+      }
+
+      if (target.classList.contains("maskable-meaning")) {
+        target.classList.toggle("is-revealed");
+      }
     });
 
     // 전역 단축키 (입력창/셀렉트/텍스트에어리어 포커스 시 충돌 방지)
@@ -1765,7 +2241,9 @@
     switchMainTab,
     switchVocabSubTab,
     switchGrammarSubTab,
+    switchReadingCategory,
     switchTab,
+    renderReadingSection,
     refreshAllViews,
     speakJapanese
   };
