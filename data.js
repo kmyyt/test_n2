@@ -105,22 +105,40 @@
   }
 
   function normalizeGrammarList(rawList) {
-    return (Array.isArray(rawList) ? rawList : [])
+    const map = new Map();
+
+    (Array.isArray(rawList) ? rawList : [])
       .filter((g) => g && typeof g === "object" && (g.word || g.pattern))
-      .map((g, idx) => ({
-        id: normalizeId(g.id, `g-${idx + 1}`),
-        type: "grammar",
-        category: g.category || "문법",
-        word: String(g.word || g.pattern).trim(),
-        kana: String(g.kana || g.word || g.pattern).trim(),
-        meaning: String(g.meaning || "").trim(),
-        connection: String(g.connection || "기타").trim(),
-        compareGrammar: Array.isArray(g.compareGrammar) ? g.compareGrammar : [],
-        example: String(g.example || "").trim(),
-        exampleKana: String(g.exampleKana || "").trim(),
-        exampleMeaning: String(g.exampleMeaning || "").trim(),
-        explanation: String(g.explanation || "").trim()
-      }));
+      .forEach((g, idx) => {
+        const id = normalizeId(g.id, `g-${String(idx + 1).padStart(3, "0")}`);
+        const normalizedItem = {
+          id,
+          type: "grammar",
+          category: String(g.category || "문법").trim(),
+          pattern: String(g.pattern || g.word).trim(),
+          word: String(g.word || g.pattern).trim(),
+          kana: String(g.kana || g.word || g.pattern).trim(),
+          meaning: String(g.meaning || "").trim(),
+          connection: String(g.connection || "기타").trim(),
+          collocation: String(g.collocation || "").trim(),
+          compareGrammar: Array.isArray(g.compareGrammar) ? g.compareGrammar : [],
+          example: String(g.example || "").trim(),
+          exampleKana: String(g.exampleKana || "").trim(),
+          exampleMeaning: String(g.exampleMeaning || "").trim(),
+          explanation: String(g.explanation || "").trim(),
+          examHistory: Array.isArray(g.examHistory) ? g.examHistory : []
+        };
+        map.set(id, normalizedItem);
+      });
+
+    return [...map.values()].sort((a, b) => {
+      const numA = parseInt(a.id.replace(/\D/g, ""), 10);
+      const numB = parseInt(b.id.replace(/\D/g, ""), 10);
+      if (Number.isFinite(numA) && Number.isFinite(numB) && numA !== numB) {
+        return numA - numB;
+      }
+      return a.id.localeCompare(b.id);
+    });
   }
 
   function normalizeReadingList(rawList) {
@@ -151,6 +169,7 @@
 
   const grammarPart1 = Array.isArray(window.GRAMMAR_DB) ? window.GRAMMAR_DB : [];
   const grammarPart2 = Array.isArray(window.GRAMMAR_DB_51_100) ? window.GRAMMAR_DB_51_100 : [];
+  const grammarPart3 = Array.isArray(window.GRAMMAR_DB_101_150) ? window.GRAMMAR_DB_101_150 : [];
 
   const VOCAB_DB = mergeDuplicateEntries([
     ...kanjiReadingList,
@@ -164,7 +183,8 @@
 
   const GRAMMAR_DB = normalizeGrammarList([
     ...grammarPart1,
-    ...grammarPart2
+    ...grammarPart2,
+    ...grammarPart3
   ]);
   const READING_DB = normalizeReadingList(window.READING_DB);
 
@@ -593,4 +613,3 @@
     getOverallStatsSummary
   };
 })();
-
