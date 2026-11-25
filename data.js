@@ -4,183 +4,194 @@
   const STORAGE_KEY = "jlpt_n2_study_state_v1";
   const EXAM_DATE = "2026-12-06";
 
-  // 상태 체계: "미학습" | "모름" | "애매함" | "완벽함"
   const DEFAULT_STATE = {
     theme: "light", // "light" | "dark"
     ttsRate: 1.0, // 0.6 ~ 1.4
     maskKana: false,
     maskMeaning: false,
-    // [id]: { type: "vocab"|"grammar", status: "미학습"|"모름"|"애매함"|"완벽함", easeLevel, intervalDays, nextReviewDate, lastReviewedAt }
+    // id -> { type, status: "미학습" | "모름" | "애매함" | "완벽함", easeLevel, intervalDays, nextReviewDate, lastReviewedAt }
     progress: {},
-    favorites: [], // 어휘/문법 ID 배열
-    customDecks: [], // { id: string, name: string, wordIds: string[] }
-    posNotes: {}, // [id]: 메모 문자열
-    wrongStats: {}, // [id]: { count: number, lastWrongAt: string, lastMode: string }
-    readingProgress: {} // [readingId]: { completed: boolean, score: number, total: number, updatedAt: string }
+    favorites: [], // item id 배열
+    customDecks: [], // { id, name, wordIds }
+    posNotes: {}, // item id -> 메모 문자열
+    wrongStats: {}, // item id -> { count, lastWrongAt, lastMode }
+    // readingId -> { completed: boolean, solvedQuestions: { [qId]: selectedIndex }, completedAt: string | null }
+    readingProgress: {}
   };
 
-  function normalizeId(rawId, fallback = "") {
-    if (rawId === undefined || rawId === null) return fallback;
-    const str = String(rawId).trim();
-    return str || fallback;
+  function normalizeId(rawId) {
+    if (rawId === undefined || rawId === null) return "";
+    return String(rawId).trim();
   }
 
   function normalizeStatus(rawStatus) {
     if (rawStatus === "완벽함" || rawStatus === "외움") return "완벽함";
     if (rawStatus === "애매함" || rawStatus === "헷갈림") return "애매함";
     if (rawStatus === "모름") return "모름";
+    if (rawStatus === "미학습" || rawStatus === "미암기") return "미학습";
     return "미학습";
   }
 
   function normalizeExamTag(tag) {
-    const raw = String(tag ?? "").trim();
-    if (!raw) return "";
-    const yearMatch = raw.match(/^(\d{4})(?:년|년도)?$/);
-    if (yearMatch) {
-      return `${yearMatch[1]}년`;
-    }
+    if (!tag) return "";
+    const raw = String(tag).trim();
+    const match = raw.match(/(\d{4})/);
+    if (match) return `${match[1]}년`;
     return raw;
   }
 
   function mergeDuplicateEntries(items) {
     const map = new Map();
-
-    (Array.isArray(items) ? items : []).forEach((item, index) => {
-      if (!item || typeof item !== "object" || !item.word) return;
-      const wordKey = String(item.word).trim();
-      const kanaKey = String(item.kana || "").trim();
-      if (!wordKey) return;
-
-      const key = `${wordKey}__${kanaKey}`;
-      const rawTags =
-        Array.isArray(item.examTags) && item.examTags.length
-          ? item.examTags
-          : item.category
-          ? [item.category]
-          : [];
-      const normalizedTags = rawTags.map(normalizeExamTag).filter(Boolean);
+    (items || []).forEach((item, idx) => {
+      if (!item || typeof item !== "object") return;
+      const key = `${String(item.word || "").trim()}__${String(item.kana || "").trim()}`;
+      if (!key || key === "__") {
+        map.set(`__unique_${idx}`, { ...item });
+        return;
+      }
 
       if (!map.has(key)) {
+        const normalizedTags = Array.isArray(item.examTags)
+          ? [...new Set(item.examTags.map(normalizeExamTag).filter(Boolean))]
+          : [];
         map.set(key, {
           ...item,
-          id: normalizeId(item.id, `vocab-${index + 1}`),
-          type: item.type || "vocab",
-          category: item.category || "어휘",
-          word: wordKey,
-          kana: kanaKey,
-          meaning: item.meaning || "",
-          pos: item.pos || "",
-          examTags: [...new Set(normalizedTags)],
-          example: item.example || "",
-          exampleKana: item.exampleKana || "",
-          exampleMeaning: item.exampleMeaning || "",
-          synonyms: Array.isArray(item.synonyms) ? [...new Set(item.synonyms.filter(Boolean))] : [],
-          connection: item.connection ?? null,
-          compareGrammar: Array.isArray(item.compareGrammar)
-            ? [...new Set(item.compareGrammar.filter(Boolean))]
-            : []
+          examTags: normalizedTags
         });
       } else {
         const existing = map.get(key);
-        existing.examTags = [...new Set([...existing.examTags, ...normalizedTags])];
+        const existingTags = Array.isArray(existing.examTags) ? existing.examTags : [];
+        const incomingTags = Array.isArray(item.examTags) ? item.examTags : [];
+        existing.examTags = [
+          ...new Set([...existingTags, ...incomingTags].map(normalizeExamTag).filter(Boolean))
+        ];
+
+        if (!existing.example && item.example) existing.example = item.example;
+        if (!existing.exampleKana && item.exampleKana) existing.exampleKana = item.exampleKana;
+        if (!existing.exampleMeaning && item.exampleMeaning) existing.exampleMeaning = item.exampleMeaning;
         if (!existing.meaning && item.meaning) existing.meaning = item.meaning;
-        if (!existing.pos && item.pos) existing.pos = item.pos;
-        if (!existing.example && item.example) {
-          existing.example = item.example;
-          existing.exampleKana = item.exampleKana || "";
-          existing.exampleMeaning = item.exampleMeaning || "";
+        if ((!existing.synonyms || !existing.synonyms.length) && Array.isArray(item.synonyms)) {
+          existing.synonyms = [...item.synonyms];
         }
-        if (Array.isArray(item.synonyms) && item.synonyms.length) {
-          existing.synonyms = [...new Set([...existing.synonyms, ...item.synonyms.filter(Boolean)])];
-        }
-        if (Array.isArray(item.compareGrammar) && item.compareGrammar.length) {
-          existing.compareGrammar = [
-            ...new Set([...existing.compareGrammar, ...item.compareGrammar.filter(Boolean)])
-          ];
+        if (!existing.connection && item.connection) existing.connection = item.connection;
+        if ((!existing.compareGrammar || !existing.compareGrammar.length) && Array.isArray(item.compareGrammar)) {
+          existing.compareGrammar = [...item.compareGrammar];
         }
       }
     });
-
-    return [...map.values()];
+    return Array.from(map.values());
   }
 
   function normalizeGrammarList(rawList) {
-    const map = new Map();
-
-    (Array.isArray(rawList) ? rawList : [])
-      .filter((g) => g && typeof g === "object" && (g.word || g.pattern))
-      .forEach((g, idx) => {
-        const id = normalizeId(g.id, `g-${String(idx + 1).padStart(3, "0")}`);
-        const normalizedItem = {
-          id,
-          type: "grammar",
-          category: String(g.category || "문법").trim(),
-          pattern: String(g.pattern || g.word).trim(),
-          word: String(g.word || g.pattern).trim(),
-          kana: String(g.kana || g.word || g.pattern).trim(),
-          meaning: String(g.meaning || "").trim(),
-          connection: String(g.connection || "기타").trim(),
-          collocation: String(g.collocation || "").trim(),
-          compareGrammar: Array.isArray(g.compareGrammar) ? g.compareGrammar : [],
-          example: String(g.example || "").trim(),
-          exampleKana: String(g.exampleKana || "").trim(),
-          exampleMeaning: String(g.exampleMeaning || "").trim(),
-          explanation: String(g.explanation || "").trim(),
-          examHistory: Array.isArray(g.examHistory) ? g.examHistory : []
-        };
-        map.set(id, normalizedItem);
+    if (!Array.isArray(rawList)) return [];
+    const seen = new Set();
+    const normalized = [];
+    rawList.forEach((item, idx) => {
+      if (!item || typeof item !== "object") return;
+      const id = normalizeId(item.id || `g-${idx + 1}`);
+      if (!id || seen.has(id)) return;
+      seen.add(id);
+      normalized.push({
+        ...item,
+        id,
+        type: "grammar",
+        pattern: item.pattern || item.word || "",
+        kana: item.kana || item.pattern || item.word || "",
+        meaning: item.meaning || "",
+        connection: item.connection || "",
+        explanation: item.explanation || "",
+        example: item.example || "",
+        exampleKana: item.exampleKana || "",
+        exampleMeaning: item.exampleMeaning || "",
+        compareGrammar: Array.isArray(item.compareGrammar) ? item.compareGrammar : []
       });
-
-    return [...map.values()].sort((a, b) => {
-      const numA = parseInt(a.id.replace(/\D/g, ""), 10);
-      const numB = parseInt(b.id.replace(/\D/g, ""), 10);
-      if (Number.isFinite(numA) && Number.isFinite(numB) && numA !== numB) {
-        return numA - numB;
-      }
-      return a.id.localeCompare(b.id);
     });
+    return normalized;
   }
 
   function normalizeReadingList(rawList) {
-    return (Array.isArray(rawList) ? rawList : [])
-      .filter((r) => r && typeof r === "object" && r.passage)
-      .map((r, idx) => ({
-        id: normalizeId(r.id, `r-${idx + 1}`),
+    if (!Array.isArray(rawList)) return [];
+    const seen = new Set();
+    const normalized = [];
+
+    rawList.forEach((item, idx) => {
+      if (!item || typeof item !== "object") return;
+      const id = normalizeId(item.id || `r-${idx + 1}`);
+      if (!id || seen.has(id)) return;
+      seen.add(id);
+
+      const questions = Array.isArray(item.questions)
+        ? item.questions.map((q, qIdx) => ({
+            qId: normalizeId(q?.qId || `${id}-q${qIdx + 1}`),
+            question: String(q?.question || ""),
+            choices: Array.isArray(q?.choices) ? q.choices.map(String) : [],
+            answerIndex: Number.isFinite(Number(q?.answerIndex)) ? Number(q.answerIndex) : 0,
+            clueSentence: String(q?.clueSentence || ""),
+            explanation: String(q?.explanation || ""),
+            wrongReasons:
+              q && q.wrongReasons && typeof q.wrongReasons === "object" ? { ...q.wrongReasons } : {}
+          }))
+        : [];
+
+      const relatedVocabGrammar = Array.isArray(item.relatedVocabGrammar)
+        ? item.relatedVocabGrammar.map((entry) => ({
+            term: String(entry?.term || ""),
+            reading: String(entry?.reading || ""),
+            meaning: String(entry?.meaning || ""),
+            note: String(entry?.note || "")
+          }))
+        : [];
+
+      normalized.push({
+        ...item,
+        id,
         type: "reading",
-        category: String(r.category || "단문").trim(),
-        title: String(r.title || `독해 지문 ${idx + 1}`).trim(),
-        passage: String(r.passage).trim(),
-        passageKana: String(r.passageKana || "").trim(),
-        translation: String(r.translation || "").trim(),
-        questions: Array.isArray(r.questions) ? r.questions : [],
-        notes: Array.isArray(r.notes) ? r.notes : []
-      }));
+        category: String(item.category || "단문"),
+        examTypeLabel: String(item.examTypeLabel || item.category || "독해"),
+        title: String(item.title || `독해 지문 ${idx + 1}`),
+        estimatedMinutes: Number.isFinite(Number(item.estimatedMinutes))
+          ? Number(item.estimatedMinutes)
+          : 3,
+        passage: String(item.passage || ""),
+        passageA: String(item.passageA || ""),
+        passageB: String(item.passageB || ""),
+        footnotes: Array.isArray(item.footnotes) ? item.footnotes.map(String) : [],
+        translation: String(item.translation || ""),
+        translationA: String(item.translationA || ""),
+        translationB: String(item.translationB || ""),
+        questions,
+        relatedVocabGrammar
+      });
+    });
+
+    return normalized;
   }
 
+  // 개별 어휘·문법·독해 DB 안전 병합
   const kanjiReadingList = Array.isArray(window.KANJI_READING_DB) ? window.KANJI_READING_DB : [];
   const notationExamList = Array.isArray(window.NOTATION_EXAM_DB) ? window.NOTATION_EXAM_DB : [];
   const wordFormationList = Array.isArray(window.WORD_FORMATION_DB) ? window.WORD_FORMATION_DB : [];
-  const contextCompositionList = Array.isArray(window.CONTEXT_COMPOSITION_DB)
+  const contextCompList = Array.isArray(window.CONTEXT_COMPOSITION_DB)
     ? window.CONTEXT_COMPOSITION_DB
     : [];
   const synonymExprList = Array.isArray(window.SYNONYM_EXPR_DB) ? window.SYNONYM_EXPR_DB : [];
   const usageExamList = Array.isArray(window.USAGE_EXAM_DB) ? window.USAGE_EXAM_DB : [];
-  const extraVocabList = Array.isArray(window.EXTRA_VOCAB_DB) ? window.EXTRA_VOCAB_DB : [];
+
+  const mergedFromParts = mergeDuplicateEntries([
+    ...kanjiReadingList,
+    ...notationExamList,
+    ...wordFormationList,
+    ...contextCompList,
+    ...synonymExprList,
+    ...usageExamList
+  ]);
+
+  const VOCAB_DB = mergedFromParts.length > 0 ? mergedFromParts : [];
 
   const grammarPart1 = Array.isArray(window.GRAMMAR_DB) ? window.GRAMMAR_DB : [];
   const grammarPart2 = Array.isArray(window.GRAMMAR_DB_51_100) ? window.GRAMMAR_DB_51_100 : [];
   const grammarPart3 = Array.isArray(window.GRAMMAR_DB_101_150) ? window.GRAMMAR_DB_101_150 : [];
   const grammarPart4 = Array.isArray(window.GRAMMAR_DB_4) ? window.GRAMMAR_DB_4 : [];
-
-  const VOCAB_DB = mergeDuplicateEntries([
-    ...kanjiReadingList,
-    ...notationExamList,
-    ...wordFormationList,
-    ...contextCompositionList,
-    ...synonymExprList,
-    ...usageExamList,
-    ...extraVocabList
-  ]);
 
   const GRAMMAR_DB = normalizeGrammarList([
     ...grammarPart1,
@@ -188,31 +199,32 @@
     ...grammarPart3,
     ...grammarPart4
   ]);
-  const READING_DB = normalizeReadingList(window.READING_DB);
+
+  const rawReadingSource = Array.isArray(window.JLPT_READING_DB)
+    ? window.JLPT_READING_DB
+    : Array.isArray(window.READING_DB)
+    ? window.READING_DB
+    : [];
+
+  const READING_DB = normalizeReadingList(rawReadingSource);
 
   function formatDuplicateExamLabel(examTags) {
     if (!Array.isArray(examTags) || examTags.length < 2) return "";
-    const uniqueTags = [...new Set(examTags.map((t) => String(t).trim()).filter(Boolean))];
-    if (uniqueTags.length < 2) return "";
-
-    const years = uniqueTags
+    const years = examTags
       .map((tag) => {
-        const match = tag.match(/(\d{4})/);
-        return match ? `${match[1]}년` : null;
+        const match = String(tag).match(/(\d{4})/);
+        return match ? match[1] : String(tag).trim();
       })
       .filter(Boolean);
-
-    if (years.length >= 2) {
-      return `(${[...new Set(years)].sort().join("·")}도 중복 기출)`;
-    }
-    return `(${uniqueTags.join("·")} 중복 기출)`;
+    if (years.length < 2) return "";
+    return `${years.map((y) => (y.endsWith("년") ? y : `${y}년`)).join("·")}도 중복 기출`;
   }
 
   function isHiraganaOnly(text) {
     if (!text || typeof text !== "string") return false;
     const trimmed = text.trim();
     if (!trimmed) return false;
-    return /^[ぁ-ゟー・\s]+$/u.test(trimmed);
+    return /^[ぁ-ゟー]+$/u.test(trimmed);
   }
 
   function extractKanjiChars(word) {
@@ -223,7 +235,8 @@
 
   function findWordsByKanji(kanjiChar, excludeId = null) {
     if (!kanjiChar) return [];
-    const targetExclude = excludeId !== null && excludeId !== undefined ? String(excludeId) : null;
+    const targetExclude =
+      excludeId !== null && excludeId !== undefined ? String(excludeId) : null;
     return VOCAB_DB.filter(
       (item) =>
         String(item.id) !== targetExclude &&
@@ -242,13 +255,14 @@
     return `${yyyy}-${mm}-${dd}`;
   }
 
-  // SRS 4단계 평가 반영: "미학습" | "모름" | "애매함" | "완벽함"
   function calculateNextSrs(prevRecord, ratingOrStatus) {
     const prevInterval =
       prevRecord && typeof prevRecord.intervalDays === "number" ? prevRecord.intervalDays : 0;
-    const prevEase = prevRecord && typeof prevRecord.easeLevel === "number" ? prevRecord.easeLevel : 1;
+    const prevEase =
+      prevRecord && typeof prevRecord.easeLevel === "number" ? prevRecord.easeLevel : 1;
+    const normalized = normalizeStatus(ratingOrStatus);
 
-    if (ratingOrStatus === "미학습") {
+    if (normalized === "미학습") {
       return {
         status: "미학습",
         easeLevel: 1,
@@ -258,7 +272,7 @@
       };
     }
 
-    if (ratingOrStatus === "완벽함" || ratingOrStatus === "외움") {
+    if (normalized === "완벽함") {
       const easeLevel = Math.min(5, prevEase + 1);
       let intervalDays = 3;
       if (prevInterval <= 0) intervalDays = 3;
@@ -274,7 +288,7 @@
       };
     }
 
-    if (ratingOrStatus === "애매함" || ratingOrStatus === "헷갈림") {
+    if (normalized === "애매함") {
       const intervalDays = prevInterval >= 2 ? 2 : 1;
       return {
         status: "애매함",
@@ -285,7 +299,6 @@
       };
     }
 
-    // "모름"
     return {
       status: "모름",
       easeLevel: 1,
@@ -304,6 +317,43 @@
 
   function cloneDefaultState() {
     return JSON.parse(JSON.stringify(DEFAULT_STATE));
+  }
+
+  function sanitizeReadingProgressEntry(rp) {
+    if (!rp || typeof rp !== "object") {
+      return {
+        completed: false,
+        solvedQuestions: {},
+        completedAt: null
+      };
+    }
+
+    const solvedQuestions = {};
+    if (rp.solvedQuestions && typeof rp.solvedQuestions === "object") {
+      Object.entries(rp.solvedQuestions).forEach(([qId, selIdx]) => {
+        const qKey = normalizeId(qId);
+        const parsedIdx = Number(selIdx);
+        if (qKey && Number.isInteger(parsedIdx) && parsedIdx >= 0) {
+          solvedQuestions[qKey] = parsedIdx;
+        }
+      });
+    }
+
+    const completed = Boolean(rp.completed);
+    const completedAt =
+      typeof rp.completedAt === "string" && rp.completedAt
+        ? rp.completedAt
+        : completed && typeof rp.updatedAt === "string"
+        ? rp.updatedAt
+        : completed
+        ? new Date().toISOString()
+        : null;
+
+    return {
+      completed,
+      solvedQuestions,
+      completedAt
+    };
   }
 
   function sanitizeState(raw) {
@@ -381,15 +431,9 @@
 
     if (raw.readingProgress && typeof raw.readingProgress === "object") {
       Object.entries(raw.readingProgress).forEach(([id, rp]) => {
-        if (!rp || typeof rp !== "object") return;
         const key = normalizeId(id);
         if (!key) return;
-        base.readingProgress[key] = {
-          completed: Boolean(rp.completed),
-          score: Number.isFinite(Number(rp.score)) ? Number(rp.score) : 0,
-          total: Number.isFinite(Number(rp.total)) ? Number(rp.total) : 0,
-          updatedAt: typeof rp.updatedAt === "string" ? rp.updatedAt : new Date().toISOString()
-        };
+        base.readingProgress[key] = sanitizeReadingProgressEntry(rp);
       });
     }
 
@@ -410,6 +454,64 @@
     const clean = sanitizeState(state);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(clean));
     return clean;
+  }
+
+  function updateReadingAnswer(readingId, qId, selectedIndex, state = null) {
+    const rKey = normalizeId(readingId);
+    const qKey = normalizeId(qId);
+    const idx = Number(selectedIndex);
+    if (!rKey || !qKey || !Number.isInteger(idx) || idx < 0) {
+      return state || loadState();
+    }
+
+    const current = sanitizeState(state || loadState());
+    current.readingProgress = current.readingProgress || {};
+    const prev = sanitizeReadingProgressEntry(current.readingProgress[rKey]);
+
+    const passageObj = READING_DB.find((item) => String(item.id) === rKey);
+    const totalQuestions = Array.isArray(passageObj?.questions) ? passageObj.questions.length : 0;
+
+    const nextSolved = {
+      ...prev.solvedQuestions,
+      [qKey]: idx
+    };
+
+    const allSolved =
+      totalQuestions > 0 &&
+      passageObj.questions.every((q) => nextSolved[normalizeId(q.qId)] !== undefined);
+
+    const completed = prev.completed || allSolved;
+    const completedAt = completed
+      ? prev.completedAt || new Date().toISOString()
+      : null;
+
+    current.readingProgress[rKey] = {
+      completed,
+      solvedQuestions: nextSolved,
+      completedAt
+    };
+
+    return saveState(current);
+  }
+
+  function toggleReadingCompleted(readingId, forceCompleted = null, state = null) {
+    const rKey = normalizeId(readingId);
+    if (!rKey) return state || loadState();
+
+    const current = sanitizeState(state || loadState());
+    current.readingProgress = current.readingProgress || {};
+    const prev = sanitizeReadingProgressEntry(current.readingProgress[rKey]);
+
+    const nextCompleted =
+      typeof forceCompleted === "boolean" ? forceCompleted : !prev.completed;
+
+    current.readingProgress[rKey] = {
+      completed: nextCompleted,
+      solvedQuestions: { ...prev.solvedQuestions },
+      completedAt: nextCompleted ? prev.completedAt || new Date().toISOString() : null
+    };
+
+    return saveState(current);
   }
 
   function exportStateToJson(state) {
@@ -464,10 +566,10 @@
   function getVocabStatsSummary(state = loadState()) {
     const clean = sanitizeState(state);
     const total = VOCAB_DB.length;
-    let learned = 0; // 완벽함
-    let ambiguous = 0; // 애매함
-    let unknown = 0; // 모름
-    let unlearned = 0; // 미학습
+    let learned = 0;
+    let ambiguous = 0;
+    let unknown = 0;
+    let unlearned = 0;
     let due = 0;
     let wrongCount = 0;
 
@@ -511,10 +613,10 @@
   function getGrammarStatsSummary(state = loadState()) {
     const clean = sanitizeState(state);
     const total = GRAMMAR_DB.length;
-    let learned = 0; // 완벽함
-    let ambiguous = 0; // 애매함
-    let unknown = 0; // 모름
-    let unstudied = 0; // 미학습
+    let learned = 0;
+    let ambiguous = 0;
+    let unknown = 0;
+    let unstudied = 0;
     let due = 0;
 
     GRAMMAR_DB.forEach((item) => {
@@ -543,19 +645,37 @@
 
   function getReadingStatsSummary(state = loadState()) {
     const clean = sanitizeState(state);
-    const total = READING_DB.length;
-    let completed = 0;
+    const readingTotal = READING_DB.length;
+    let readingDone = 0;
+    let solvedQuestionCount = 0;
+    let totalQuestionCount = 0;
 
     READING_DB.forEach((item) => {
-      const rp = clean.readingProgress[String(item.id)];
-      if (rp && rp.completed) completed += 1;
+      const idStr = String(item.id);
+      const rp = sanitizeReadingProgressEntry(clean.readingProgress[idStr]);
+      if (rp.completed) readingDone += 1;
+
+      const qList = Array.isArray(item.questions) ? item.questions : [];
+      totalQuestionCount += qList.length;
+      qList.forEach((q) => {
+        if (rp.solvedQuestions[normalizeId(q.qId)] !== undefined) {
+          solvedQuestionCount += 1;
+        }
+      });
     });
 
+    const weakReading = Math.max(0, readingTotal - readingDone);
+
     return {
-      total,
-      completed,
-      incomplete: Math.max(0, total - completed),
-      rate: total > 0 ? Math.round((completed / total) * 100) : 0
+      total: readingTotal,
+      completed: readingDone,
+      incomplete: weakReading,
+      readingTotal,
+      readingDone,
+      weakReading,
+      solvedQuestionCount,
+      totalQuestionCount,
+      rate: readingTotal > 0 ? Math.round((readingDone / readingTotal) * 100) : 0
     };
   }
 
@@ -566,12 +686,15 @@
     const reading = getReadingStatsSummary(clean);
 
     const vocabRate = vocab.total > 0 ? Math.round((vocab.learned / vocab.total) * 100) : 0;
-    const totalUnits = vocab.total + grammar.total + reading.total;
-    const completedUnits = vocab.learned + grammar.learned + reading.completed;
+    const totalUnits = vocab.total + grammar.total + reading.readingTotal;
+    const completedUnits = vocab.learned + grammar.learned + reading.readingDone;
     const overallRate = totalUnits > 0 ? Math.round((completedUnits / totalUnits) * 100) : 0;
 
     return {
       overallRate,
+      readingTotal: reading.readingTotal,
+      readingDone: reading.readingDone,
+      weakReading: reading.weakReading,
       vocab: { ...vocab, rate: vocabRate },
       grammar,
       reading,
@@ -582,7 +705,7 @@
           (acc, s) => acc + (s && Number(s.count) > 0 ? Number(s.count) : 0),
           0
         ),
-        incompleteReading: reading.incomplete
+        incompleteReading: reading.weakReading
       }
     };
   }
@@ -603,9 +726,12 @@
     getTodayISO,
     calculateNextSrs,
     isDueForReview,
+    sanitizeReadingProgressEntry,
     sanitizeState,
     loadState,
     saveState,
+    updateReadingAnswer,
+    toggleReadingCompleted,
     exportStateToJson,
     importStateFromJson,
     resetAllData,
