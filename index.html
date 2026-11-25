@@ -119,7 +119,7 @@
             </div>
             <div class="domain-metric">
               <strong id="dash-vocab-learned">0</strong>
-              <span>/ <span id="dash-vocab-total">0</span> 외움</span>
+              <span>/ <span id="dash-vocab-total">0</span> 완벽함</span>
             </div>
             <div class="mini-progress-bg"><div class="mini-progress-fill" id="dash-vocab-bar" style="width: 0%;"></div></div>
           </article>
@@ -131,7 +131,7 @@
             </div>
             <div class="domain-metric">
               <strong id="dash-grammar-learned">0</strong>
-              <span>/ <span id="dash-grammar-total">0</span> 학습</span>
+              <span>/ <span id="dash-grammar-total">0</span> 완벽함</span>
             </div>
             <div class="mini-progress-bg"><div class="mini-progress-fill" id="dash-grammar-bar" style="width: 0%;"></div></div>
           </article>
@@ -161,8 +161,8 @@
             </p>
             <div class="quick-action-row">
               <button type="button" class="btn btn-primary" id="btn-quick-start-vocab">어휘 복습 시작</button>
-              <button type="button" class="btn btn-secondary" id="btn-quick-start-flashcard">플래시카드 학습</button>
-              <button type="button" class="btn" id="btn-quick-start-grammar">문법 학습 이동</button>
+              <button type="button" class="btn btn-secondary" id="btn-quick-start-flashcard">어휘 플래시카드</button>
+              <button type="button" class="btn" id="btn-quick-start-grammar">문법 대시보드 이동</button>
             </div>
           </article>
 
@@ -171,7 +171,7 @@
               <span>⚠️ 취약 영역 종합 현황</span>
             </div>
             <ul class="weak-summary-list" id="dash-weak-summary">
-              <li>헷갈림 어휘: <strong id="dash-weak-ambiguous">0</strong>개</li>
+              <li>애매함 어휘: <strong id="dash-weak-ambiguous">0</strong>개</li>
               <li>누적 오답 기록: <strong id="dash-weak-wrong">0</strong>개</li>
               <li>미완료 독해 지문: <strong id="dash-weak-reading">0</strong>편</li>
             </ul>
@@ -196,7 +196,7 @@
         </section>
       </section>
 
-      <!-- ② 문자·어휘 섹션 (진입 시 '어휘 대시보드' 서브탭 기본 노출) -->
+      <!-- ② 문자·어휘 섹션 -->
       <section id="panel-vocab-section" class="main-panel" aria-labelledby="vocab-section-heading" hidden>
         <div class="panel-header">
           <h1 id="vocab-section-heading" class="section-title">문자·어휘</h1>
@@ -232,16 +232,20 @@
               <span class="stat-label">오늘 복습</span>
               <strong class="stat-value" id="stat-vocab-due">0</strong>
             </button>
-            <button type="button" class="stat-card" data-stat-filter="외움">
-              <span class="stat-label">외움</span>
+            <button type="button" class="stat-card" data-stat-filter="완벽함">
+              <span class="stat-label">완벽함</span>
               <strong class="stat-value" id="stat-vocab-learned">0</strong>
             </button>
-            <button type="button" class="stat-card" data-stat-filter="헷갈림">
-              <span class="stat-label">헷갈림</span>
+            <button type="button" class="stat-card" data-stat-filter="애매함">
+              <span class="stat-label">애매함</span>
               <strong class="stat-value" id="stat-vocab-ambiguous">0</strong>
             </button>
-            <button type="button" class="stat-card" data-stat-filter="미암기">
-              <span class="stat-label">미암기</span>
+            <button type="button" class="stat-card" data-stat-filter="모름">
+              <span class="stat-label">모름</span>
+              <strong class="stat-value" id="stat-vocab-unknown">0</strong>
+            </button>
+            <button type="button" class="stat-card" data-stat-filter="미학습">
+              <span class="stat-label">미학습</span>
               <strong class="stat-value" id="stat-vocab-unlearned">0</strong>
             </button>
             <button type="button" class="stat-card" data-stat-filter="favorite">
@@ -302,9 +306,10 @@
               <select id="vocab-status-filter" aria-label="암기 상태 필터">
                 <option value="ALL">전체 상태</option>
                 <option value="DUE">오늘 복습 대상</option>
-                <option value="외움">외움</option>
-                <option value="헷갈림">헷갈림</option>
-                <option value="미암기">미암기</option>
+                <option value="미학습">미학습</option>
+                <option value="모름">모름</option>
+                <option value="애매함">애매함</option>
+                <option value="완벽함">완벽함</option>
                 <option value="FAVORITE">즐겨찾기</option>
               </select>
               <select id="vocab-deck-filter" aria-label="커스텀 단어장 필터">
@@ -328,7 +333,7 @@
                   <option value="">커스텀 단어장 선택...</option>
                 </select>
                 <button type="button" class="btn btn-secondary" id="btn-batch-add-deck">선택 단어 담기</button>
-                <button type="button" class="btn" id="btn-batch-mark-learned">외움 처리</button>
+                <button type="button" class="btn" id="btn-batch-mark-learned">완벽함 처리</button>
               </div>
             </div>
           </div>
@@ -350,9 +355,10 @@
               <select id="fc-scope-select" aria-label="플래시카드 출제 범위">
                 <option value="ALL">전체 어휘</option>
                 <option value="DUE">오늘 복습 대상</option>
-                <option value="외움">외움</option>
-                <option value="헷갈림">헷갈림</option>
-                <option value="미암기">미암기</option>
+                <option value="미학습">미학습</option>
+                <option value="모름">모름</option>
+                <option value="애매함">애매함</option>
+                <option value="완벽함">완벽함</option>
                 <option value="FAVORITE">즐겨찾기</option>
               </select>
               <button type="button" class="btn" id="btn-fc-shuffle">🔀 셔플</button>
@@ -360,7 +366,7 @@
             </div>
             <div class="flashcard-progress">
               <span id="fc-counter">0 / 0</span>
-              <span class="badge" id="fc-status-badge">미암기</span>
+              <span class="badge" id="fc-status-badge">미학습</span>
             </div>
           </div>
 
@@ -417,10 +423,11 @@
             </article>
           </div>
 
-          <!-- SRS 3단계 평가 & 이전/다음 이동 -->
+          <!-- SRS 4단계 평가 (미학습 / 모름 / 애매함 / 완벽함) -->
           <div class="fc-srs-bar">
             <button type="button" class="btn" id="btn-fc-prev">← 이전 [←]</button>
             <div class="srs-rating-group">
+              <button type="button" class="btn" data-srs-rating="미학습">미학습 [0]</button>
               <button type="button" class="btn btn-srs-hard" data-srs-rating="모름">모름 (1일) [1]</button>
               <button type="button" class="btn btn-srs-mid" data-srs-rating="애매함">애매함 (2일) [2]</button>
               <button type="button" class="btn btn-srs-easy" data-srs-rating="완벽함">완벽함 (SRS) [3]</button>
@@ -429,13 +436,21 @@
           </div>
         </div>
 
-        <!-- ②-4 퀴즈 서브패널 (4지선다 + 주관식 히라가나 테스트) -->
+        <!-- ②-4 퀴즈 서브패널 -->
         <div id="subpanel-vocab-quiz" class="vocab-subpanel" hidden>
           <div class="card quiz-setup-card" id="vocab-quiz-setup">
             <div class="card-header">
-              <span>📝 어휘 퀴즈 / 히라가나 테스트 설정</span>
+              <span>📝 퀴즈 / 히라가나 테스트 설정</span>
             </div>
             <div class="quiz-options-grid">
+              <label>
+                <span>출제 영역</span>
+                <select id="vocab-quiz-domain">
+                  <option value="vocab" selected>문자·어휘</option>
+                  <option value="grammar">핵심 문법</option>
+                  <option value="all">통합 (어휘 + 문법)</option>
+                </select>
+              </label>
               <label>
                 <span>테스트 유형</span>
                 <select id="vocab-quiz-mode">
@@ -446,11 +461,12 @@
               <label>
                 <span>출제 범위</span>
                 <select id="vocab-quiz-scope">
-                  <option value="ALL">전체 어휘</option>
+                  <option value="ALL">전체</option>
                   <option value="DUE">오늘 복습 대상</option>
-                  <option value="외움">외움</option>
-                  <option value="헷갈림">헷갈림</option>
-                  <option value="미암기">미암기</option>
+                  <option value="미학습">미학습</option>
+                  <option value="모름">모름</option>
+                  <option value="애매함">애매함</option>
+                  <option value="완벽함">완벽함</option>
                   <option value="FAVORITE">즐겨찾기</option>
                 </select>
               </label>
@@ -465,7 +481,7 @@
               </label>
             </div>
 
-            <div class="subjective-options" id="subjective-extra-options">
+            <div class="subjective-options" id="subjective-extra-options" hidden>
               <label class="checkbox-label">
                 <input type="checkbox" id="subj-hide-meaning" />
                 <span>뜻 숨김 모드</span>
@@ -497,7 +513,7 @@
             <div class="card-header">
               <span>📕 오답노트</span>
               <div class="quick-action-row">
-                <button type="button" class="btn btn-primary" id="btn-retry-wrong-vocab">틀린 단어만 다시 풀기</button>
+                <button type="button" class="btn btn-primary" id="btn-retry-wrong-vocab">틀린 항목만 다시 풀기</button>
                 <button type="button" class="btn" id="btn-clear-wrong-vocab">목록 정리</button>
               </div>
             </div>
@@ -506,49 +522,180 @@
         </div>
       </section>
 
-      <!-- ③ 문법 섹션 -->
+      <!-- ③ 문법 섹션 (문법 대시보드 / 문법 목록 / 문법 플래시카드 / 문법 퀴즈) -->
       <section id="panel-grammar-section" class="main-panel" aria-labelledby="grammar-section-heading" hidden>
         <div class="panel-header">
           <h1 id="grammar-section-heading" class="section-title">핵심 문법</h1>
-          <p class="section-subtitle">접속 형태 배지와 유사 문법 비교로 N2 문법 패턴을 체계적으로 정리하세요.</p>
+          <p class="section-subtitle">문법 대시보드, 패턴 목록, 플래시카드, 퀴즈로 N2 문법을 학습하세요.</p>
         </div>
 
-        <div class="stats-grid compact-stats" id="grammar-stats-grid">
-          <div class="stat-card">
-            <span class="stat-label">핵심 문법 패턴</span>
-            <strong class="stat-value" id="stat-grammar-total">0</strong>
+        <div class="sub-tab-bar" role="tablist" aria-label="문법 서브 탭">
+          <button type="button" class="sub-tab-item active" data-grammar-subtab="grammar-dashboard" role="tab" aria-selected="true">
+            문법 대시보드
+          </button>
+          <button type="button" class="sub-tab-item" data-grammar-subtab="grammar-list" role="tab" aria-selected="false">
+            문법 목록
+          </button>
+          <button type="button" class="sub-tab-item" data-grammar-subtab="grammar-flashcard" role="tab" aria-selected="false">
+            문법 플래시카드
+          </button>
+          <button type="button" class="sub-tab-item" data-grammar-subtab="grammar-quiz" role="tab" aria-selected="false">
+            문법 퀴즈
+          </button>
+        </div>
+
+        <!-- ③-1 문법 대시보드 -->
+        <div id="subpanel-grammar-dashboard" class="grammar-subpanel active">
+          <div class="stats-grid" id="grammar-stats-grid">
+            <button type="button" class="stat-card" data-grammar-stat="all">
+              <span class="stat-label">전체 문법</span>
+              <strong class="stat-value" id="stat-grammar-total">0</strong>
+            </button>
+            <button type="button" class="stat-card" data-grammar-stat="due">
+              <span class="stat-label">오늘 복습</span>
+              <strong class="stat-value" id="stat-grammar-due">0</strong>
+            </button>
+            <button type="button" class="stat-card" data-grammar-stat="완벽함">
+              <span class="stat-label">완벽함</span>
+              <strong class="stat-value" id="stat-grammar-learned">0</strong>
+            </button>
+            <button type="button" class="stat-card" data-grammar-stat="애매함">
+              <span class="stat-label">애매함</span>
+              <strong class="stat-value" id="stat-grammar-ambiguous">0</strong>
+            </button>
+            <button type="button" class="stat-card" data-grammar-stat="모름">
+              <span class="stat-label">모름</span>
+              <strong class="stat-value" id="stat-grammar-unknown">0</strong>
+            </button>
+            <button type="button" class="stat-card" data-grammar-stat="미학습">
+              <span class="stat-label">미학습</span>
+              <strong class="stat-value" id="stat-grammar-unstudied">0</strong>
+            </button>
           </div>
-          <div class="stat-card">
-            <span class="stat-label">학습 완료</span>
-            <strong class="stat-value" id="stat-grammar-learned">0</strong>
-          </div>
-          <div class="stat-card">
-            <span class="stat-label">오늘 복습</span>
-            <strong class="stat-value" id="stat-grammar-due">0</strong>
+
+          <div class="card">
+            <div class="card-header">
+              <span>⚡ 문법 빠른 학습</span>
+            </div>
+            <div class="quick-action-row">
+              <button type="button" class="btn btn-primary" id="btn-grammar-start-due-fc">오늘 복습 문법 플래시카드</button>
+              <button type="button" class="btn btn-secondary" id="btn-grammar-start-all-fc">전체 문법 플래시카드</button>
+              <button type="button" class="btn" id="btn-grammar-start-quiz">문법 퀴즈 시작</button>
+              <button type="button" class="btn" id="btn-grammar-go-list">문법 목록 보기</button>
+            </div>
           </div>
         </div>
 
-        <div class="card filter-toolbar">
-          <div class="filter-row">
-            <input
-              type="search"
-              id="grammar-search-input"
-              class="search-input"
-              placeholder="문법 표현, 의미, 접속 형태 검색..."
-              aria-label="문법 검색"
-            />
-            <select id="grammar-connection-filter" aria-label="접속 형태 필터">
-              <option value="ALL">전체 접속 형태</option>
-              <option value="동사">동사 접속</option>
-              <option value="형용사">형용사 접속</option>
-              <option value="명사">명사 접속</option>
-            </select>
+        <!-- ③-2 문법 목록 -->
+        <div id="subpanel-grammar-list" class="grammar-subpanel" hidden>
+          <div class="card filter-toolbar">
+            <div class="filter-row">
+              <input
+                type="search"
+                id="grammar-search-input"
+                class="search-input"
+                placeholder="문법 표현, 의미, 접속 형태 검색..."
+                aria-label="문법 검색"
+              />
+              <select id="grammar-connection-filter" aria-label="접속 형태 필터">
+                <option value="ALL">전체 접속 형태</option>
+                <option value="동사">동사 접속</option>
+                <option value="형용사">형용사 접속</option>
+                <option value="명사">명사 접속</option>
+              </select>
+              <select id="grammar-status-filter" aria-label="문법 학습 상태 필터">
+                <option value="ALL">전체 상태</option>
+                <option value="DUE">오늘 복습 대상</option>
+                <option value="미학습">미학습</option>
+                <option value="모름">모름</option>
+                <option value="애매함">애매함</option>
+                <option value="완벽함">완벽함</option>
+              </select>
+            </div>
+          </div>
+
+          <div id="grammar-card-list" class="grammar-list-container"></div>
+        </div>
+
+        <!-- ③-3 문법 플래시카드 -->
+        <div id="subpanel-grammar-flashcard" class="grammar-subpanel" hidden>
+          <div class="card flashcard-toolbar">
+            <div class="flashcard-controls-left">
+              <select id="gfc-scope-select" aria-label="문법 플래시카드 출제 범위">
+                <option value="ALL">전체 문법</option>
+                <option value="DUE">오늘 복습 대상</option>
+                <option value="미학습">미학습</option>
+                <option value="모름">모름</option>
+                <option value="애매함">애매함</option>
+                <option value="완벽함">완벽함</option>
+              </select>
+              <button type="button" class="btn" id="btn-gfc-shuffle">🔀 셔플</button>
+              <button type="button" class="btn" id="btn-gfc-speak">🔊 예문 발음</button>
+            </div>
+            <div class="flashcard-progress">
+              <span id="gfc-counter">0 / 0</span>
+              <span class="badge" id="gfc-status-badge">미학습</span>
+            </div>
+          </div>
+
+          <article class="card flashcard" id="grammar-flashcard-card" tabindex="0" aria-label="문법 플래시카드">
+            <div id="gfc-front">
+              <div class="fc-meta-top">
+                <span class="badge badge-conn" id="gfc-connection-badge">접속</span>
+                <span class="badge" id="gfc-category-badge">분류</span>
+              </div>
+              <div class="fc-word-display maskable-target" id="gfc-pattern" lang="ja">〜あげく</div>
+              <div class="fc-kana-display maskable-kana" id="gfc-kana" lang="ja">〜あげく</div>
+              <div class="fc-note-box">
+                <label for="gfc-simple-memo" class="sr-only">문법 간단 메모</label>
+                <input type="text" id="gfc-simple-memo" placeholder="문법 간단 메모 입력 (자동 저장)..." />
+              </div>
+              <p class="fc-flip-hint">카드를 클릭하거나 [Space]를 눌러 의미·접속·예문 보기</p>
+            </div>
+
+            <div id="gfc-back" hidden>
+              <div class="fc-back-header">
+                <strong class="fc-meaning-display maskable-meaning" id="gfc-meaning">의미</strong>
+                <span class="badge badge-conn" id="gfc-back-connection">접속</span>
+              </div>
+              <p class="helper-text" id="gfc-explanation"></p>
+              <div class="fc-example-box">
+                <p class="fc-example-jp maskable-target" id="gfc-example" lang="ja"></p>
+                <p class="fc-example-kana maskable-kana" id="gfc-example-kana" lang="ja"></p>
+                <p class="fc-example-ko maskable-meaning" id="gfc-example-meaning"></p>
+              </div>
+              <div class="compare-chip-list" id="gfc-compare-chips"></div>
+            </div>
+          </article>
+
+          <div class="fc-srs-bar">
+            <button type="button" class="btn" id="btn-gfc-prev">← 이전 [←]</button>
+            <div class="srs-rating-group">
+              <button type="button" class="btn" data-grammar-srs="미학습">미학습 [0]</button>
+              <button type="button" class="btn btn-srs-hard" data-grammar-srs="모름">모름 (1일) [1]</button>
+              <button type="button" class="btn btn-srs-mid" data-grammar-srs="애매함">애매함 (2일) [2]</button>
+              <button type="button" class="btn btn-srs-easy" data-grammar-srs="완벽함">완벽함 (SRS) [3]</button>
+            </div>
+            <button type="button" class="btn" id="btn-gfc-next">다음 [→]</button>
           </div>
         </div>
 
-        <div id="grammar-card-list" class="grammar-list-container"></div>
+        <!-- ③-4 문법 퀴즈 -->
+        <div id="subpanel-grammar-quiz" class="grammar-subpanel" hidden>
+          <div class="card">
+            <div class="card-header">
+              <span>📝 문법 전용 퀴즈</span>
+            </div>
+            <p class="helper-text">문법 패턴과 예문 공란을 바탕으로 4지선다 문법 퀴즈를 진행합니다.</p>
+            <div class="quick-action-row">
+              <button type="button" class="btn btn-primary" id="btn-run-grammar-quiz-10">문법 10문제 시작</button>
+              <button type="button" class="btn" id="btn-run-grammar-quiz-all">문법 전체 시작</button>
+            </div>
+            <div id="grammar-quiz-runner" style="margin-top: 14px;"></div>
+          </div>
+        </div>
 
-        <!-- 유사 문법 비교 팝업/패널 슬롯 -->
+        <!-- 유사 문법 비교 모달 -->
         <div class="compare-modal-backdrop" id="grammar-compare-modal" hidden>
           <div class="card modal-card" role="dialog" aria-modal="true" aria-labelledby="compare-modal-title">
             <div class="card-header">
@@ -587,7 +734,7 @@
       <section id="panel-guide-section" class="main-panel" aria-labelledby="guide-section-heading" hidden>
         <div class="panel-header">
           <h1 id="guide-section-heading" class="section-title">사용방법 및 학습 가이드</h1>
-          <p class="section-subtitle">5대 영역 활용법, SRS 복습 주기, 전역 단축키를 안내합니다.</p>
+          <p class="section-subtitle">5대 영역 활용법, SRS 4단계 복습 주기, 전역 단축키를 안내합니다.</p>
         </div>
 
         <div class="guide-grid">
@@ -596,17 +743,18 @@
             <ul class="guide-list">
               <li><strong>대시보드:</strong> 어휘·문법·독해 진도율과 오늘 복습 합계, 취약 현황 및 JSON 백업/복원을 관리합니다.</li>
               <li><strong>문자·어휘:</strong> 어휘 대시보드에서 시작해 단어장(50개 단위 지연 렌더링), 플래시카드, 퀴즈, 오답노트를 이어갑니다.</li>
-              <li><strong>문법:</strong> 접속 형태 필터와 유사 문법 비교 기능으로 헷갈리는 N2 문형을 대조합니다.</li>
+              <li><strong>문법:</strong> 문법 대시보드, 접속 형태·상태 필터, 유사 문법 비교, 문법 플래시카드와 문법 퀴즈를 제공합니다.</li>
               <li><strong>독해:</strong> 지문 유형별 본문과 문맥 완성 문제, 어휘·문법 연계 해설을 학습합니다.</li>
             </ul>
           </article>
 
           <article class="card">
-            <div class="card-header"><span>🧠 SRS 망각곡선 주기 안내</span></div>
+            <div class="card-header"><span>🧠 SRS 4단계 복습 주기 안내</span></div>
             <p class="helper-text">
               플래시카드 및 퀴즈 평가에 따라 다음 복습 예정일이 자동 계산되어 <strong>오늘 복습</strong> 목록에 올라옵니다.
             </p>
             <ul class="guide-list">
+              <li><strong>미학습:</strong> 아직 학습하지 않은 초기 상태입니다.</li>
               <li><strong>모름 (1일):</strong> 다음 날 바로 재복습하도록 설정합니다.</li>
               <li><strong>애매함 (2일):</strong> 2일 뒤 재확인하여 장기 기억으로 전환합니다.</li>
               <li><strong>완벽함 (SRS):</strong> 복습 간격이 점진적으로 늘어나며(3일 → 7일 → 점진 확장) 효율적으로 복습합니다.</li>
@@ -624,10 +772,10 @@
               </tr>
             </thead>
             <tbody>
-              <tr><td><kbd>Space</kbd></td><td>플래시카드 앞/뒷면 뒤집기</td></tr>
+              <tr><td><kbd>Space</kbd></td><td>어휘/문법 플래시카드 앞/뒷면 뒤집기</td></tr>
               <tr><td><kbd>←</kbd> / <kbd>→</kbd></td><td>이전 / 다음 카드 이동</td></tr>
-              <tr><td><kbd>R</kbd></td><td>현재 단어/문법 TTS 발음 재생</td></tr>
-              <tr><td><kbd>1</kbd> / <kbd>2</kbd> / <kbd>3</kbd></td><td>SRS 평가 (모름 / 애매함 / 완벽함)</td></tr>
+              <tr><td><kbd>R</kbd></td><td>현재 단어/문법 예문 TTS 발음 재생</td></tr>
+              <tr><td><kbd>0</kbd> / <kbd>1</kbd> / <kbd>2</kbd> / <kbd>3</kbd></td><td>SRS 평가 (미학습 / 모름 / 애매함 / 완벽함)</td></tr>
               <tr><td><kbd>K</kbd></td><td>전체 히라가나 가림 토글</td></tr>
               <tr><td><kbd>M</kbd></td><td>전체 뜻 가림 토글</td></tr>
               <tr><td><kbd>?</kbd></td><td>단축키 안내 모달 열기/닫기</td></tr>
@@ -651,7 +799,7 @@
           <li><strong>Space:</strong> 플래시카드 뒤집기</li>
           <li><strong>← / →:</strong> 이전 / 다음 카드</li>
           <li><strong>R:</strong> TTS 발음 듣기</li>
-          <li><strong>1 / 2 / 3:</strong> 모름 / 애매함 / 완벽함 평가</li>
+          <li><strong>0 / 1 / 2 / 3:</strong> 미학습 / 모름 / 애매함 / 완벽함 평가</li>
           <li><strong>K / M:</strong> 히라가나 가림 / 뜻 가림 토글</li>
           <li><strong>?:</strong> 이 안내 창 열기/닫기</li>
         </ul>
@@ -660,21 +808,15 @@
   </div>
 
   <!-- 스크립트 로드 순서: [개별 DB들] -> data.js -> study.js -> quiz.js -->
-<!-- 실제 존재하는 단어 DB 파일들 먼저 로드 -->
-<script src="./data-kanji-reading.js" defer></script>
-<script src="./data-notation-exam.js" defer></script>
-<script src="./data-word-formation.js" defer></script>
-<script src="./data-context-composition.js" defer></script>
-<script src="./data-synonym-expr.js" defer></script>
-<script src="./data-usage-exam.js" defer></script>
-<script src="./data-grammar.js" defer></script>
-<!-- 아직 파일이 없는 data-grammar.js, data-reading.js는 파일이 생긴 뒤 추가(404 방지) -->
-
-<!-- <script src="./data-reading.js" defer></script> -->
-
-<!-- 코어 및 앱 스크립트 -->
-<script src="./data.js" defer></script>
-<script src="./study.js" defer></script>
-<script src="./quiz.js" defer></script>
+  <script src="data-kanji-reading.js" defer></script>
+  <script src="data-notation-exam.js" defer></script>
+  <script src="data-word-formation.js" defer></script>
+  <script src="data-context-composition.js" defer></script>
+  <script src="data-synonym-expr.js" defer></script>
+  <script src="data-usage-exam.js" defer></script>
+  <script src="data-grammar.js" defer></script>
+  <script src="data.js" defer></script>
+  <script src="study.js" defer></script>
+  <script src="quiz.js" defer></script>
 </body>
 </html>
