@@ -149,6 +149,9 @@
   const usageExamList = Array.isArray(window.USAGE_EXAM_DB) ? window.USAGE_EXAM_DB : [];
   const extraVocabList = Array.isArray(window.EXTRA_VOCAB_DB) ? window.EXTRA_VOCAB_DB : [];
 
+  const grammarPart1 = Array.isArray(window.GRAMMAR_DB) ? window.GRAMMAR_DB : [];
+  const grammarPart2 = Array.isArray(window.GRAMMAR_DB_51_100) ? window.GRAMMAR_DB_51_100 : [];
+
   const VOCAB_DB = mergeDuplicateEntries([
     ...kanjiReadingList,
     ...notationExamList,
@@ -159,7 +162,10 @@
     ...extraVocabList
   ]);
 
-  const GRAMMAR_DB = normalizeGrammarList(window.GRAMMAR_DB);
+  const GRAMMAR_DB = normalizeGrammarList([
+    ...grammarPart1,
+    ...grammarPart2
+  ]);
   const READING_DB = normalizeReadingList(window.READING_DB);
 
   function formatDuplicateExamLabel(examTags) {
@@ -587,3 +593,4 @@
     getOverallStatsSummary
   };
 })();
+
