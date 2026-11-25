@@ -9,6 +9,24 @@
 
   const VOCAB_PAGE_SIZE = 50;
 
+  // =========================================================
+  // Google Cloud TTS (ja-JP) 설정 및 재생 상태
+  // =========================================================
+  const GOOGLE_TTS_CONFIG = {
+    // 개인 학습용으로 쓰실 때만 넣으시고, Google Cloud Console에서
+    // 'HTTP 리퍼러(웹사이트)' 제한과 '사용량 한도'를 꼭 설정하세요.
+    apiKey: "YOUR_GOOGLE_CLOUD_TTS_API_KEY",
+    languageCode: "ja-JP",
+    voiceName: "ja-JP-Neural2-B", // 여성 내레이션/아나운서 톤 (남성 톤: "ja-JP-Neural2-C" / "ja-JP-Neural2-D")
+    audioEncoding: "MP3",
+    enableCache: true,
+    maxCacheSize: 200
+  };
+
+  let currentGoogleAudio = null;
+  let googlePlayToken = 0;
+  const googleAudioCache = new Map(); // key -> blobUrl
+
   let appState = DATA.loadState();
 
   // 메인 탭 및 서브 탭 상태
@@ -40,7 +58,7 @@
   let gfcFlipped = false;
 
   // =========================================================
-  // 1. 공통 유틸리티 (이스케이프, TTS, D-Day, 테마, 전역 가림)
+  // 1. 공통 유틸리티 (이스케이프, Google Cloud TTS, D-Day, 테마, 전역 가림)
   // =========================================================
   function escapeHtml(str) {
     return String(str ?? "")
@@ -67,12 +85,26 @@
     }
   }
 
-  function speakJapanese(text, rate = appState.ttsRate) {
-    const raw = String(text || "").replace(/〜/g, "").trim();
-    if (!raw || typeof window.speechSynthesis === "undefined") return;
+  function stopGoogleOrBrowserTts() {
+    if (currentGoogleAudio) {
+      try {
+        currentGoogleAudio.pause();
+        currentGoogleAudio.currentTime = 0;
+      } catch (_) {}
+      currentGoogleAudio = null;
+    }
+    if (typeof window.speechSynthesis !== "undefined") {
+      try {
+        window.speechSynthesis.cancel();
+      } catch (_) {}
+    }
+  }
+
+  function fallbackBrowserSpeak(text, rate = 1.0) {
+    if (typeof window.speechSynthesis === "undefined") return;
     try {
       window.speechSynthesis.cancel();
-      const utter = new SpeechSynthesisUtterance(raw);
+      const utter = new SpeechSynthesisUtterance(text);
       utter.lang = "ja-JP";
       utter.rate = Number.isFinite(Number(rate)) ? Number(rate) : 1.0;
       const voices = window.speechSynthesis.getVoices();
@@ -81,6 +113,111 @@
       window.speechSynthesis.speak(utter);
     } catch (_) {
       // TTS 미지원 환경 무시
+    }
+  }
+
+  function cacheGoogleAudioUrl(key, blobUrl) {
+    if (!GOOGLE_TTS_CONFIG.enableCache) return;
+    if (googleAudioCache.has(key)) {
+      const oldUrl = googleAudioCache.get(key);
+      googleAudioCache.delete(key);
+      googleAudioCache.set(key, oldUrl);
+      return;
+    }
+    if (googleAudioCache.size >= GOOGLE_TTS_CONFIG.maxCacheSize) {
+      const oldestKey = googleAudioCache.keys().next().value;
+      const oldestUrl = googleAudioCache.get(oldestKey);
+      googleAudioCache.delete(oldestKey);
+      if (oldestUrl) {
+        setTimeout(() => URL.revokeObjectURL(oldestUrl), 1000);
+      }
+    }
+    googleAudioCache.set(key, blobUrl);
+  }
+
+  async function fetchGoogleJapaneseTtsBlob(text, speakingRate = 1.0) {
+    const apiKey = String(GOOGLE_TTS_CONFIG.apiKey || "").trim();
+    if (!apiKey || apiKey === "YOUR_GOOGLE_CLOUD_TTS_API_KEY") {
+      throw new Error("Google Cloud TTS API 키가 설정되지 않았습니다.");
+    }
+
+    const clampedRate = Math.max(0.25, Math.min(4.0, Number(speakingRate) || 1.0));
+    const url = `https://texttospeech.googleapis.com/v1/text:synthesize?key=${encodeURIComponent(
+      apiKey
+    )}`;
+
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        input: { text },
+        voice: {
+          languageCode: GOOGLE_TTS_CONFIG.languageCode,
+          name: GOOGLE_TTS_CONFIG.voiceName
+        },
+        audioConfig: {
+          audioEncoding: GOOGLE_TTS_CONFIG.audioEncoding,
+          speakingRate: clampedRate
+        }
+      })
+    });
+
+    if (!res.ok) {
+      throw new Error(`Google TTS 요청 실패 (HTTP ${res.status})`);
+    }
+
+    const data = await res.json();
+    if (!data || !data.audioContent) {
+      throw new Error("Google TTS 응답에 audioContent가 없습니다.");
+    }
+
+    const binaryStr = atob(data.audioContent);
+    const bytes = new Uint8Array(binaryStr.length);
+    for (let i = 0; i < binaryStr.length; i += 1) {
+      bytes[i] = binaryStr.charCodeAt(i);
+    }
+
+    return new Blob([bytes], { type: "audio/mpeg" });
+  }
+
+  function playGoogleBlobUrl(blobUrl, token) {
+    if (token !== googlePlayToken) return;
+    const audio = new Audio(blobUrl);
+    currentGoogleAudio = audio;
+    audio.play().catch(() => {
+      // 브라우저 자동재생 제한 등 예외 무시
+    });
+  }
+
+  async function speakJapanese(text, rate = appState.ttsRate) {
+    const cleanText = String(text || "").replace(/〜/g, "").trim();
+    if (!cleanText) return;
+
+    const token = ++googlePlayToken;
+    stopGoogleOrBrowserTts();
+
+    const numericRate = Number.isFinite(Number(rate)) ? Number(rate) : 1.0;
+    const cacheKey = `${GOOGLE_TTS_CONFIG.voiceName}::${numericRate}::${cleanText}`;
+
+    if (GOOGLE_TTS_CONFIG.enableCache && googleAudioCache.has(cacheKey)) {
+      const cachedUrl = googleAudioCache.get(cacheKey);
+      cacheGoogleAudioUrl(cacheKey, cachedUrl);
+      playGoogleBlobUrl(cachedUrl, token);
+      return;
+    }
+
+    try {
+      const blob = await fetchGoogleJapaneseTtsBlob(cleanText, numericRate);
+      if (token !== googlePlayToken) return;
+
+      const blobUrl = URL.createObjectURL(blob);
+      cacheGoogleAudioUrl(cacheKey, blobUrl);
+      playGoogleBlobUrl(blobUrl, token);
+    } catch (err) {
+      console.warn("Google TTS 재생 실패, 브라우저 기본 TTS로 폴백합니다:", err);
+      if (token === googlePlayToken) {
+        fallbackBrowserSpeak(cleanText, numericRate);
+      }
     }
   }
 
