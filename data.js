@@ -170,6 +170,7 @@
   const grammarPart1 = Array.isArray(window.GRAMMAR_DB) ? window.GRAMMAR_DB : [];
   const grammarPart2 = Array.isArray(window.GRAMMAR_DB_51_100) ? window.GRAMMAR_DB_51_100 : [];
   const grammarPart3 = Array.isArray(window.GRAMMAR_DB_101_150) ? window.GRAMMAR_DB_101_150 : [];
+  const grammarPart4 = Array.isArray(window.GRAMMAR_DB_4) ? window.GRAMMAR_DB_4 : [];
 
   const VOCAB_DB = mergeDuplicateEntries([
     ...kanjiReadingList,
@@ -184,7 +185,8 @@
   const GRAMMAR_DB = normalizeGrammarList([
     ...grammarPart1,
     ...grammarPart2,
-    ...grammarPart3
+    ...grammarPart3,
+    ...grammarPart4
   ]);
   const READING_DB = normalizeReadingList(window.READING_DB);
 
