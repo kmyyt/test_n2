@@ -1718,7 +1718,16 @@
     document.addEventListener("click", (e) => {
       const target = e.target;
       if (!(target instanceof HTMLElement)) return;
+      
+      if (target.id === "btn-run-grammar-quiz-10") {
+  startExamQuiz("all_grammar", 10, "grammar-quiz-runner");
+  return;
+}
 
+if (target.id === "btn-run-grammar-quiz-all") {
+  startExamQuiz("all_grammar", "ALL", "grammar-quiz-runner");
+  return;
+}
       // 커스텀 문법 퀴즈 시작
       if (target.id === "btn-start-custom-grammar-quiz") {
         startGrammarCustomQuiz();
