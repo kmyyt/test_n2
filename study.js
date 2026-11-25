@@ -16,7 +16,7 @@
     // 개인 학습용으로 쓰실 때만 넣으시고, Google Cloud Console에서
     // 'HTTP 리퍼러(웹사이트)' 제한과 '사용량 한도'를 꼭 설정하세요.
     apiKey: "YOUR_GOOGLE_CLOUD_TTS_API_KEY",
-    languageCode: "ja-JP",
+    languageCode: "AIzaSyBLH3EVqlHYvNLxHB7q9HYTrfV1uOzvAU4",
     voiceName: "ja-JP-Neural2-B", // 여성 내레이션/아나운서 톤 (남성 톤: "ja-JP-Neural2-C" / "ja-JP-Neural2-D")
     audioEncoding: "MP3",
     enableCache: true,
