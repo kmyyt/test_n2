@@ -729,25 +729,162 @@
         </div>
       </section>
 
-      <!-- ④ 독해 섹션 -->
+      <!-- ④ 독해 섹션 (지문 유형별 학습 + 신규 '유형별 문제 풀이 팁' 서브 탭) -->
       <section id="panel-reading-section" class="main-panel" aria-labelledby="reading-section-heading" hidden>
         <div class="panel-header">
           <h1 id="reading-section-heading" class="section-title">독해 연습</h1>
-          <p class="section-subtitle">단문·중문·장문·정보검색 지문을 읽고 문맥 완성 및 연계 해설을 확인하세요.</p>
+          <p class="section-subtitle">단문·중문·장문·통합이해·정보검색 지문 풀이와 유형별 핵심 공략 팁을 확인하세요.</p>
         </div>
 
-        <div class="sub-tab-bar" role="tablist" aria-label="독해 지문 유형">
+        <!-- 독해 상단 2차 서브 탭 바 -->
+        <div class="sub-tab-bar" role="tablist" aria-label="독해 지문 유형 및 문제 풀이 팁">
           <button type="button" class="sub-tab-item active" data-reading-category="ALL" role="tab" aria-selected="true">전체</button>
           <button type="button" class="sub-tab-item" data-reading-category="단문" role="tab" aria-selected="false">단문</button>
           <button type="button" class="sub-tab-item" data-reading-category="중문" role="tab" aria-selected="false">중문</button>
           <button type="button" class="sub-tab-item" data-reading-category="장문" role="tab" aria-selected="false">장문</button>
+          <button type="button" class="sub-tab-item" data-reading-category="통합이해" role="tab" aria-selected="false">통합이해</button>
           <button type="button" class="sub-tab-item" data-reading-category="정보검색" role="tab" aria-selected="false">정보검색</button>
+          <button type="button" class="sub-tab-item sub-tab-tips" data-reading-category="TIPS" role="tab" aria-selected="false">
+            💡 유형별 문제 풀이 팁 <span class="badge badge-tip">핵심</span>
+          </button>
         </div>
 
-        <div class="reading-layout">
-          <aside class="card reading-list-col" id="reading-passage-list" aria-label="독해 지문 목록"></aside>
+        <!-- ④-1 지문 학습 뷰 (전체 / 단문 / 중문 / 장문 / 통합이해 / 정보검색) -->
+        <div id="reading-practice-view" class="reading-layout">
+          <aside class="card reading-list-col" id="reading-passage-list" aria-label="독해 지문 목록">
+            <p class="helper-text">등록된 독해 지문을 불러오는 중입니다...</p>
+          </aside>
+
           <article class="card reading-detail-col" id="reading-detail-view" aria-live="polite">
-            <p class="helper-text">지문을 선택하면 본문과 문제, 어휘·문법 연계 해설이 표시됩니다.</p>
+            <div class="reading-empty-state">
+              <p class="helper-text">좌측(상단)에서 지문을 선택하면 본문과 문제, 어휘·문법 연계 해설이 표시됩니다.</p>
+              <ul class="guide-list">
+                <li><strong>지문 영역:</strong> 일본어 본문(<code>lang="ja"</code>), 통합이해 A·B 비교 카드, 주석, TTS 듣기 및 전체 한국어 해석 토글</li>
+                <li><strong>문항 풀이 영역:</strong> 4지선다 선택 즉시 정오답 채점 피드백 및 지문 학습 완료 체크</li>
+                <li><strong>연계 해설 영역:</strong> 정답 근거 문장 안내, 핵심 어휘·문법 포인트 칩, 지시어(<code>これ・それ</code>) 및 접속 흐름 해설</li>
+              </ul>
+            </div>
+          </article>
+        </div>
+
+        <!-- ④-2 신규 서브 탭: 유형별 문제 풀이 팁 뷰 -->
+        <div id="reading-tips-view" class="reading-tips-container" hidden>
+          <!-- 상단 요약 카드: JLPT N2 독해 5대 문제 유형 개요 -->
+          <article class="card reading-overview-card">
+            <div class="card-header">
+              <span>📋 JLPT N2 독해 5대 문제 유형 개요</span>
+              <span class="badge">교재 핵심 정리</span>
+            </div>
+            <div class="reading-type-overview-grid">
+              <div class="overview-type-item">
+                <span class="badge">問題 10</span>
+                <strong>내용이해 (단문)</strong>
+                <p>약 200자 내외 지문(일상생활·업무·학습 등)을 읽고 내용 이해 여부를 묻는 유형</p>
+              </div>
+              <div class="overview-type-item">
+                <span class="badge">問題 11</span>
+                <strong>내용이해 (중문)</strong>
+                <p>약 500자 내외 지문(신문 평론·설명문·수필 등)에서 인과 관계·개요·이유·필자의 생각을 묻는 유형</p>
+              </div>
+              <div class="overview-type-item">
+                <span class="badge">問題 12</span>
+                <strong>통합이해 (A·B 비교)</strong>
+                <p>한 화제에 대한 두 가지 입장(A·B)의 글이나 복수 지문을 읽고 공통점·차이점을 비교·종합하는 유형</p>
+              </div>
+              <div class="overview-type-item">
+                <span class="badge">問題 13</span>
+                <strong>주장이해 (장문)</strong>
+                <p>약 900자 내외 평론 등 장문에서 필자의 주장·의견·주제·키워드·논리 전개 방식을 파악하는 유형</p>
+              </div>
+              <div class="overview-type-item">
+                <span class="badge">問題 14</span>
+                <strong>정보검색 (실용문)</strong>
+                <p>약 700자 내외 광고·팸플릿·정보지·전단지·문서 등에서 조건에 맞는 정보를 찾아내는 유형</p>
+              </div>
+            </div>
+          </article>
+
+          <!-- 유형별 공략 카드 그리드 -->
+          <div class="reading-tips-grid">
+            <article class="card tip-card">
+              <div class="card-header">
+                <span>① 단문 풀이 팁 (問題 10 · 약 200자)</span>
+                <span class="badge">내용이해</span>
+              </div>
+              <ul class="guide-list">
+                <li><strong>질문과 키워드 먼저 파악:</strong> 짧은 지문이므로 먼저 질문이 무엇을 묻는지 확인하고, 필자의 생각·주장·결론 문장을 찾습니다.</li>
+                <li><strong>나열 항목 시각화:</strong> 중요한 항목이 여럿 나열되면 머릿속이나 메모로 구조를 잡아 선지와 대조합니다.</li>
+                <li><strong>바꿔 쓰기 표현 확인:</strong> 정답 선지는 본문 표현을 다른 말로 바꿔 쓰거나 일부 생략·추가(예: <code lang="ja">「〜も」</code> 생략 여부)하는 경우가 많으므로 핵심 근거를 정확히 비교합니다.</li>
+              </ul>
+            </article>
+
+            <article class="card tip-card">
+              <div class="card-header">
+                <span>② 중문 풀이 팁 (問題 11 · 약 500자)</span>
+                <span class="badge">내용이해</span>
+              </div>
+              <ul class="guide-list">
+                <li><strong>범위 한정 표현 주의:</strong> 선지에 <code lang="ja">「すべて・必ず・〜だけ」</code> 같은 단정·한정 표현이 있으면 본문에서 실제로 그 정도까지 말했는지 반드시 확인합니다.</li>
+                <li><strong><code lang="ja">「AではなくB」</code> 구조 주목:</strong> 필자가 강조하려는 핵심은 A가 아니라 B에 있는 경우가 많으므로 B 중심의 주장을 잡습니다.</li>
+                <li><strong>예시·부연은 핵심만 파악:</strong> 구체적 사례나 나열은 주장을 뒷받침하는 수단이므로 세부 예시에 매몰되지 않고 중심 주장을 먼저 파악합니다.</li>
+              </ul>
+            </article>
+
+            <article class="card tip-card">
+              <div class="card-header">
+                <span>③ 통합이해 풀이 팁 (問題 12 · A/B 비교)</span>
+                <span class="badge">복수 지문</span>
+              </div>
+              <ul class="guide-list">
+                <li><strong>필자의 태도 먼저 구분:</strong> 각 글이 주제에 대해 찬성·부정·우려 등 어떤 입장인지 파악하고, 입장이 비슷할수록 세부 차이점에 집중합니다.</li>
+                <li><strong>공통 키워드 vs 개별 키워드 구분:</strong> A와 B가 함께 다루는 소재와 한쪽에서만 강조하는 내용을 나누어 비교합니다.</li>
+              </ul>
+            </article>
+
+            <article class="card tip-card">
+              <div class="card-header">
+                <span>④ 주장이해 장문 풀이 팁 (問題 13 · 약 900자)</span>
+                <span class="badge">장문 독해</span>
+              </div>
+              <ul class="guide-list">
+                <li><strong>글 전체의 주제·요지 파악:</strong> 부분적인 사실이 아니라 글 전체를 관통하는 필자의 핵심 의견과 생각 변화를 잡습니다.</li>
+                <li><strong>반복 키워드와 논리 전개 추적:</strong> 반복되는 핵심어와 역접(<code lang="ja">しかし・だが・ところが</code>)·정리(<code lang="ja">つまり・要するに</code>) 뒤에 오는 필자의 주장에 집중합니다.</li>
+                <li><strong>오답 유형 소거:</strong> 본문 내용을 지나치게 과장하거나 비약한 선지, 일부 단락만 맞고 전체 요지와 어긋나는 부분 일치 선지를 걸러냅니다.</li>
+              </ul>
+            </article>
+
+            <article class="card tip-card">
+              <div class="card-header">
+                <span>⑤ 정보검색 풀이 팁 (問題 14 · 약 700자)</span>
+                <span class="badge">실용문</span>
+              </div>
+              <ul class="guide-list">
+                <li><strong>질문·선택지 조건 먼저 확인 후 스캐닝:</strong> 지문 전체를 처음부터 정독하기보다 질문의 조건(날짜·시간·연령·요금·대상)을 먼저 읽고 해당 항목만 빠르게 대조합니다.</li>
+                <li><strong>표·안내문 하단 예외 조항 점검:</strong> <code lang="ja">※</code> 표시나 주석에 적힌 할인·무료·제한 조건이 정답을 가르는 핵심 함정이므로 반드시 확인합니다.</li>
+              </ul>
+            </article>
+          </div>
+
+          <!-- 하단 질문 유형별 공통 공략 카드 -->
+          <article class="card reading-common-strategy-card">
+            <div class="card-header">
+              <span>🎯 질문 유형별 공통 공략 팁</span>
+              <span class="badge badge-conn">실전 적용</span>
+            </div>
+            <div class="common-strategy-grid">
+              <div class="strategy-item">
+                <strong>1. 필자 관련 문제</strong>
+                <p>단락이 1개면 <strong>첫 문장과 마지막 문장</strong>, 단락이 2개 이상이면 <strong>마지막 단락</strong>과 필자의 요점을 나타내는 키워드에 주목합니다.</p>
+              </div>
+              <div class="strategy-item">
+                <strong>2. 의미 파악 문제</strong>
+                <p>밑줄 친 표현 자체의 사전적·문법적 의미를 먼저 정확히 해석한 뒤, <strong>앞뒤 문맥의 흐름</strong>(지시어·접속어)과 자연스럽게 이어지는 선지를 고릅니다.</p>
+              </div>
+              <div class="strategy-item">
+                <strong>3. 내용 파악 문제</strong>
+                <p>내용이해형은 선지를 읽고 본문과 대조해 틀린 선지를 소거하고, 정보검색형은 질문을 먼저 읽은 뒤 조건에 맞는 정보를 텍스트에서 찾아냅니다.</p>
+              </div>
+            </div>
           </article>
         </div>
       </section>
@@ -766,7 +903,7 @@
               <li><strong>대시보드:</strong> 어휘·문법·독해 진도율과 오늘 복습 합계, 취약 현황 및 JSON 백업/복원을 관리합니다.</li>
               <li><strong>문자·어휘:</strong> 어휘 대시보드, 단어장(50개 단위 지연 렌더링), 플래시카드, 문제 1~6 맞춤 퀴즈, 오답노트를 제공합니다.</li>
               <li><strong>문법:</strong> 문법 대시보드, 접속 형태·상태 필터, 유사 문법 비교, 문법 플래시카드, 문제 7·8·9 맞춤 퀴즈를 제공합니다.</li>
-              <li><strong>독해:</strong> 지문 유형별 본문과 문맥 완성 문제, 어휘·문법 연계 해설을 학습합니다.</li>
+              <li><strong>독해:</strong> 단문·중문·장문·통합이해·정보검색 지문 풀이와 어휘·문법 연계 해설, 유형별 문제 풀이 팁을 학습합니다.</li>
             </ul>
           </article>
 
@@ -829,7 +966,7 @@
     </div>
   </div>
 
-  <!-- 스크립트 로드 순서: [개별 어휘 DB] -> [개별 문법 DB] -> data.js -> study.js -> quiz.js -->
+  <!-- 스크립트 로드 순서: [개별 어휘 DB] -> [개별 문법 DB] -> data-reading.js -> data.js -> study.js -> quiz.js -->
   <script src="./data-kanji-reading.js" defer></script>
   <script src="./data-notation-exam.js" defer></script>
   <script src="./data-word-formation.js" defer></script>
@@ -840,6 +977,7 @@
   <script src="./data-grammar_2.js" defer></script>
   <script src="./data-grammar_3.js" defer></script>
   <script src="./data-grammar_4.js" defer></script>
+  <script src="./data-reading.js" defer></script>
   <script src="./data.js" defer></script>
   <script src="./study.js" defer></script>
   <script src="./quiz.js" defer></script>
